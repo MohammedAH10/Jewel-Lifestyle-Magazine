@@ -1,0 +1,57 @@
+{
+  "name": "MagazineIssue",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Issue title"
+    },
+    "issue_number": {
+      "type": "string"
+    },
+    "month": {
+      "type": "string",
+      "enum": [
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December"
+      ]
+    },
+    "year": {
+      "type": "number"
+    },
+    "cover_image_url": {
+      "type": "string"
+    },
+    "pdf_url": {
+      "type": "string",
+      "description": "Downloadable PDF link"
+    },
+    "flipbook_url": {
+      "type": "string",
+      "description": "Online flipbook viewer URL"
+    },
+    "description": {
+      "type": "string"
+    },
+    "is_current": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": [
+    "title",
+    "month",
+    "year",
+    "cover_image_url"
+  ]
+}

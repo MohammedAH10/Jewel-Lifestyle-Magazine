@@ -1,0 +1,78 @@
+{
+  "name": "ExecutiveInterview",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Name of the executive"
+    },
+    "title": {
+      "type": "string",
+      "description": "Job title"
+    },
+    "company": {
+      "type": "string",
+      "description": "Company name"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "Tech",
+        "Fashion",
+        "Hospitality",
+        "Business",
+        "Finance",
+        "Healthcare",
+        "Entertainment",
+        "Other"
+      ]
+    },
+    "headshot_url": {
+      "type": "string",
+      "description": "Profile photo URL"
+    },
+    "cover_image_url": {
+      "type": "string",
+      "description": "Featured cover image"
+    },
+    "excerpt": {
+      "type": "string",
+      "description": "Short preview text"
+    },
+    "content": {
+      "type": "string",
+      "description": "Full interview content in HTML/Markdown"
+    },
+    "video_url": {
+      "type": "string",
+      "description": "Optional video interview URL"
+    },
+    "interview_type": {
+      "type": "string",
+      "enum": [
+        "Article",
+        "Q&A",
+        "Video"
+      ]
+    },
+    "published_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "is_featured": {
+      "type": "boolean",
+      "default": false
+    },
+    "is_cover_story": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": [
+    "name",
+    "title",
+    "company",
+    "category",
+    "content"
+  ]
+}

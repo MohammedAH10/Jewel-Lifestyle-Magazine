@@ -1,0 +1,32 @@
+{
+  "name": "AwardWinner",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "company": {
+      "type": "string"
+    },
+    "award_category": {
+      "type": "string"
+    },
+    "year": {
+      "type": "number"
+    },
+    "photo_url": {
+      "type": "string"
+    },
+    "bio": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "award_category",
+    "year"
+  ]
+}
