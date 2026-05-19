@@ -14,6 +14,7 @@ import subscriberRoutes from './routes/subscribers.js';
 import storyRoutes from './routes/stories.js';
 import inquiryRoutes from './routes/inquiries.js';
 import uploadRoutes from './routes/upload.js';
+import deviceRoutes from './routes/devices.js';
 
 dotenv.config();
 
@@ -37,6 +38,7 @@ app.use('/api/subscribers', subscriberRoutes);
 app.use('/api/stories', storyRoutes);
 app.use('/api/inquiries', inquiryRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/devices', deviceRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
