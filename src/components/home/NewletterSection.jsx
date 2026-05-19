@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { base44 } from "@/api/base44Client";
+import { api } from '@/api/client';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Loader2, CheckCircle, Mail } from "lucide-react";
@@ -15,7 +15,7 @@ export default function NewsletterSection() {
     e.preventDefault();
     setIsLoading(true);
     
-    await base44.entities.Subscriber.create({
+    await api.post('/subscribers', {
       email,
       name,
       subscribed_date: new Date().toISOString().split("T")[0],

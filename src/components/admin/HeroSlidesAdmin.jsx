@@ -1,116 +1,120 @@
-import React, { useState } from "react";
-import { base44 } from "@/api/base44Client";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, Loader2, GripVertical } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useState, useEffect } from 'react'
+import { api } from '@/api/client'
+import { Plus, Edit2, Trash2, Loader2, Image } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Label } from '@/components/ui/label'
 
-const slideTypes = ["Interview", "Award", "Event", "Magazine"];
+const slideTypes = ['Interview', 'Award', 'Event', 'Magazine']
+
+const defaultForm = {
+  title: '',
+  subtitle: '',
+  link_url: '',
+  link_text: '',
+  slide_type: 'Interview',
+  order: 0,
+  is_active: true,
+}
 
 export default function HeroSlidesAdmin() {
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    title: "",
-    subtitle: "",
-    link_url: "",
-    link_text: "",
-    slide_type: "Interview",
-    order: 0,
-    is_active: true,
-  });
-  const [imageFile, setImageFile] = useState(null);
+  const [slides, setSlides] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [open, setOpen] = useState(false)
+  const [editing, setEditing] = useState(null)
+  const [saving, setSaving] = useState(false)
+  const [form, setForm] = useState(defaultForm)
+  const [file, setFile] = useState(null)
 
-  const queryClient = useQueryClient();
+  const fetchSlides = async () => {
+    try {
+      setLoading(true)
+      const data = await api.get('/heroes/all')
+      setSlides(data)
+    } catch (err) {
+      console.error('Failed to load slides', err)
+    } finally {
+      setLoading(false)
+    }
+  }
 
-  const { data: slides = [], isLoading: loadingSlides } = useQuery({
-    queryKey: ["adminHeroSlides"],
-    queryFn: () => base44.entities.HeroSlide.list("order"),
-  });
+  useEffect(() => {
+    fetchSlides()
+  }, [])
 
   const resetForm = () => {
-    setFormData({
-      title: "",
-      subtitle: "",
-      link_url: "",
-      link_text: "",
-      slide_type: "Interview",
-      order: slides.length,
-      is_active: true,
-    });
-    setImageFile(null);
-    setEditingItem(null);
-  };
+    setForm(defaultForm)
+    setFile(null)
+    setEditing(null)
+  }
 
-  const handleEdit = (slide) => {
-    setEditingItem(slide);
-    setFormData({
-      title: slide.title || "",
-      subtitle: slide.subtitle || "",
-      link_url: slide.link_url || "",
-      link_text: slide.link_text || "",
-      slide_type: slide.slide_type || "Interview",
-      order: slide.order || 0,
+  const openAdd = () => {
+    resetForm()
+    setOpen(true)
+  }
+
+  const openEdit = (slide) => {
+    setEditing(slide)
+    setForm({
+      title: slide.title || '',
+      subtitle: slide.subtitle || '',
+      link_url: slide.link_url || '',
+      link_text: slide.link_text || '',
+      slide_type: slide.slide_type || 'Interview',
+      order: slide.order ?? 0,
       is_active: slide.is_active !== false,
-    });
-    setIsDialogOpen(true);
-  };
+    })
+    setOpen(true)
+  }
 
   const handleDelete = async (id) => {
-    if (!confirm("Are you sure you want to delete this slide?")) return;
-    await base44.entities.HeroSlide.delete(id);
-    queryClient.invalidateQueries({ queryKey: ["adminHeroSlides"] });
-  };
+    if (!confirm('Are you sure you want to delete this slide?')) return
+    await api.delete(`/heroes/${id}`)
+    fetchSlides()
+  }
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
+    e.preventDefault()
+    setSaving(true)
 
-    let image_url = editingItem?.image_url || "";
-
-    if (imageFile) {
-      const { file_url } = await base44.integrations.Core.UploadFile({ file: imageFile });
-      image_url = file_url;
+    let image_url = editing?.image_url || ''
+    if (file) {
+      const { file_url } = await api.uploadFile(file)
+      image_url = file_url
     }
 
-    const data = { ...formData, image_url };
+    const payload = { ...form, image_url }
 
-    if (editingItem) {
-      await base44.entities.HeroSlide.update(editingItem.id, data);
+    if (editing) {
+      await api.put(`/heroes/${editing.id}`, payload)
     } else {
-      await base44.entities.HeroSlide.create(data);
+      await api.post('/heroes', payload)
     }
 
-    queryClient.invalidateQueries({ queryKey: ["adminHeroSlides"] });
-    setIsDialogOpen(false);
-    resetForm();
-    setIsLoading(false);
-  };
+    setSaving(false)
+    setOpen(false)
+    resetForm()
+    fetchSlides()
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <p className="text-white/60">Manage homepage hero carousel slides</p>
-        <Button
-          onClick={() => {
-            resetForm();
-            setIsDialogOpen(true);
-          }}
-          className="gradient-gold text-black"
-        >
-          <Plus size={18} className="mr-2" />
-          Add Slide
-        </Button>
+        <DialogTrigger asChild>
+          <Button onClick={openAdd} className="gradient-gold text-black">
+            <Plus size={18} className="mr-2" />
+            Add Slide
+          </Button>
+        </DialogTrigger>
       </div>
 
-      {/* Slides List */}
       <div className="space-y-4">
-        {loadingSlides ? (
+        {loading ? (
           <div className="text-center py-12">
             <Loader2 className="w-6 h-6 text-gold animate-spin mx-auto" />
           </div>
@@ -124,18 +128,20 @@ export default function HeroSlidesAdmin() {
               key={slide.id}
               className="flex items-center gap-4 bg-black border border-gold/20 p-4 group"
             >
-              <GripVertical className="w-5 h-5 text-white/30" />
-              
-              {slide.image_url && (
-                <div className="w-32 h-20 flex-shrink-0 overflow-hidden">
+              {slide.image_url ? (
+                <div className="w-32 h-20 flex-shrink-0 overflow-hidden rounded">
                   <img
                     src={slide.image_url}
                     alt={slide.title}
                     className="w-full h-full object-cover"
                   />
                 </div>
+              ) : (
+                <div className="w-32 h-20 flex-shrink-0 bg-zinc-800 flex items-center justify-center rounded">
+                  <Image className="w-6 h-6 text-white/30" />
+                </div>
               )}
-              
+
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-3">
                   <h3 className="text-white font-medium truncate">{slide.title}</h3>
@@ -151,16 +157,17 @@ export default function HeroSlidesAdmin() {
                 {slide.subtitle && (
                   <p className="text-white/50 text-sm truncate">{slide.subtitle}</p>
                 )}
+                <p className="text-white/30 text-xs mt-1">Order: {slide.order}</p>
               </div>
 
               <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => handleEdit(slide)}
+                  onClick={() => openEdit(slide)}
                   className="text-white/60 hover:text-gold"
                 >
-                  <Pencil size={16} />
+                  <Edit2 size={16} />
                 </Button>
                 <Button
                   variant="ghost"
@@ -176,12 +183,11 @@ export default function HeroSlidesAdmin() {
         )}
       </div>
 
-      {/* Add/Edit Dialog */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+      <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="bg-zinc-900 border-gold/20 text-white max-w-2xl">
           <DialogHeader>
             <DialogTitle className="font-gilda text-2xl">
-              {editingItem ? "Edit Slide" : "Add New Slide"}
+              {editing ? 'Edit Slide' : 'Add New Slide'}
             </DialogTitle>
           </DialogHeader>
 
@@ -190,8 +196,8 @@ export default function HeroSlidesAdmin() {
               <Label>Title *</Label>
               <Input
                 required
-                value={formData.title}
-                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                value={form.title}
+                onChange={(e) => setForm({ ...form, title: e.target.value })}
                 className="bg-black border-gold/20 text-white"
                 placeholder="Main headline"
               />
@@ -200,23 +206,30 @@ export default function HeroSlidesAdmin() {
             <div className="space-y-2">
               <Label>Subtitle</Label>
               <Input
-                value={formData.subtitle}
-                onChange={(e) => setFormData({ ...formData, subtitle: e.target.value })}
+                value={form.subtitle}
+                onChange={(e) => setForm({ ...form, subtitle: e.target.value })}
                 className="bg-black border-gold/20 text-white"
                 placeholder="Supporting text"
               />
             </div>
 
             <div className="space-y-2">
-              <Label>Background Image *</Label>
+              <Label>Background Image</Label>
               <Input
                 type="file"
                 accept="image/*"
-                onChange={(e) => setImageFile(e.target.files[0])}
+                onChange={(e) => setFile(e.target.files[0])}
                 className="bg-black border-gold/20 text-white"
               />
-              {editingItem?.image_url && !imageFile && (
-                <p className="text-white/50 text-sm">Current image will be kept if no new file selected</p>
+              {editing?.image_url && !file && (
+                <div className="mt-2">
+                  <img
+                    src={editing.image_url}
+                    alt="Current"
+                    className="h-24 w-auto object-cover rounded border border-gold/20"
+                  />
+                  <p className="text-white/50 text-sm mt-1">Current image (kept if no new file selected)</p>
+                </div>
               )}
             </div>
 
@@ -224,8 +237,8 @@ export default function HeroSlidesAdmin() {
               <div className="space-y-2">
                 <Label>Slide Type</Label>
                 <Select
-                  value={formData.slide_type}
-                  onValueChange={(value) => setFormData({ ...formData, slide_type: value })}
+                  value={form.slide_type}
+                  onValueChange={(value) => setForm({ ...form, slide_type: value })}
                 >
                   <SelectTrigger className="bg-black border-gold/20 text-white">
                     <SelectValue />
@@ -243,8 +256,8 @@ export default function HeroSlidesAdmin() {
                 <Label>Display Order</Label>
                 <Input
                   type="number"
-                  value={formData.order}
-                  onChange={(e) => setFormData({ ...formData, order: parseInt(e.target.value) })}
+                  value={form.order}
+                  onChange={(e) => setForm({ ...form, order: parseInt(e.target.value) || 0 })}
                   className="bg-black border-gold/20 text-white"
                 />
               </div>
@@ -254,8 +267,8 @@ export default function HeroSlidesAdmin() {
               <div className="space-y-2">
                 <Label>Link URL</Label>
                 <Input
-                  value={formData.link_url}
-                  onChange={(e) => setFormData({ ...formData, link_url: e.target.value })}
+                  value={form.link_url}
+                  onChange={(e) => setForm({ ...form, link_url: e.target.value })}
                   className="bg-black border-gold/20 text-white"
                   placeholder="/ExecutiveInterviews?id=xxx"
                 />
@@ -263,8 +276,8 @@ export default function HeroSlidesAdmin() {
               <div className="space-y-2">
                 <Label>Link Button Text</Label>
                 <Input
-                  value={formData.link_text}
-                  onChange={(e) => setFormData({ ...formData, link_text: e.target.value })}
+                  value={form.link_text}
+                  onChange={(e) => setForm({ ...form, link_text: e.target.value })}
                   className="bg-black border-gold/20 text-white"
                   placeholder="e.g., Read More"
                 />
@@ -272,33 +285,34 @@ export default function HeroSlidesAdmin() {
             </div>
 
             <div className="flex items-center gap-3">
-              <Switch
-                checked={formData.is_active}
-                onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
+              <Checkbox
+                id="is_active"
+                checked={form.is_active}
+                onCheckedChange={(checked) => setForm({ ...form, is_active: !!checked })}
               />
-              <Label>Active (visible on homepage)</Label>
+              <Label htmlFor="is_active" className="text-white">Active (visible on homepage)</Label>
             </div>
 
             <div className="flex justify-end gap-4">
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setIsDialogOpen(false)}
+                onClick={() => setOpen(false)}
                 className="border-gold/30 text-white"
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
-                disabled={isLoading}
+                disabled={saving}
                 className="gradient-gold text-black"
               >
-                {isLoading ? <Loader2 className="animate-spin" size={18} /> : editingItem ? "Update" : "Create"}
+                {saving ? <Loader2 className="animate-spin" size={18} /> : editing ? 'Update' : 'Create'}
               </Button>
             </div>
           </form>
         </DialogContent>
       </Dialog>
     </div>
-  );
+  )
 }

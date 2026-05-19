@@ -1,48 +1,67 @@
-import React, { useState } from "react";
-import { base44 } from "@/api/base44Client";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Trash2, Download, Mail, UserX } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { format } from "date-fns";
+import { useState, useEffect } from 'react'
+import { api } from '@/api/client'
+import { Loader2, Download, Trash2, Mail } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 
 export default function SubscribersAdmin() {
-  const queryClient = useQueryClient();
+  const [subscribers, setSubscribers] = useState([])
+  const [loading, setLoading] = useState(true)
 
-  const { data: subscribers = [], isLoading } = useQuery({
-    queryKey: ["adminSubscribers"],
-    queryFn: () => base44.entities.Subscriber.list("-created_date"),
-  });
+  const fetchSubscribers = async () => {
+    try {
+      setLoading(true)
+      const data = await api.get('/subscribers')
+      setSubscribers(data)
+    } catch (err) {
+      console.error('Failed to load subscribers', err)
+    } finally {
+      setLoading(false)
+    }
+  }
 
-  const handleToggleActive = async (id, currentStatus) => {
-    await base44.entities.Subscriber.update(id, { is_active: !currentStatus });
-    queryClient.invalidateQueries({ queryKey: ["adminSubscribers"] });
-  };
+  useEffect(() => {
+    fetchSubscribers()
+  }, [])
 
   const handleDelete = async (id) => {
-    if (!confirm("Are you sure you want to delete this subscriber?")) return;
-    await base44.entities.Subscriber.delete(id);
-    queryClient.invalidateQueries({ queryKey: ["adminSubscribers"] });
-  };
+    if (!confirm('Are you sure you want to delete this subscriber?')) return
+    await api.delete(`/subscribers/${id}`)
+    fetchSubscribers()
+  }
 
   const handleExportCSV = () => {
-    const activeSubscribers = subscribers.filter(s => s.is_active);
     const csv = [
-      "Name,Email,Subscribed Date",
-      ...activeSubscribers.map(s => 
-        `"${s.name || ''}","${s.email}","${s.subscribed_date || s.created_date || ''}"`
-      )
-    ].join("\n");
+      'Name,Email,Subscribed Date',
+      ...subscribers.map((s) =>
+        `"${(s.name || '').replace(/"/g, '""')}","${s.email.replace(/"/g, '""')}","${s.subscribed_date || ''}"`
+      ),
+    ].join('\n')
 
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `subscribers_${format(new Date(), "yyyy-MM-dd")}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `subscribers_${new Date().toISOString().split('T')[0]}.csv`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
 
-  const activeCount = subscribers.filter(s => s.is_active).length;
+  const formatDate = (d) => {
+    if (!d) return '—'
+    try {
+      return new Date(d).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      })
+    } catch {
+      return d
+    }
+  }
+
+  const activeCount = subscribers.filter((s) => s.is_active !== false).length
 
   return (
     <div className="space-y-6">
@@ -50,7 +69,7 @@ export default function SubscribersAdmin() {
         <div>
           <p className="text-white/60">Manage newsletter subscribers</p>
           <p className="text-gold text-sm mt-1">
-            {activeCount} active subscriber{activeCount !== 1 ? 's' : ''}
+            {activeCount} active subscriber{activeCount !== 1 ? 's' : ''} ({subscribers.length} total)
           </p>
         </div>
         <Button
@@ -70,13 +89,13 @@ export default function SubscribersAdmin() {
               <tr className="border-b border-gold/10">
                 <th className="text-left px-6 py-4 text-white/60 text-sm font-normal">Email</th>
                 <th className="text-left px-6 py-4 text-white/60 text-sm font-normal">Name</th>
-                <th className="text-left px-6 py-4 text-white/60 text-sm font-normal">Date</th>
+                <th className="text-left px-6 py-4 text-white/60 text-sm font-normal">Subscribed Date</th>
                 <th className="text-left px-6 py-4 text-white/60 text-sm font-normal">Status</th>
                 <th className="text-right px-6 py-4 text-white/60 text-sm font-normal">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {isLoading ? (
+              {loading ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-12 text-center">
                     <Loader2 className="w-6 h-6 text-gold animate-spin mx-auto" />
@@ -98,37 +117,24 @@ export default function SubscribersAdmin() {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-white/70">
-                      {subscriber.name || "—"}
+                      {subscriber.name || '—'}
                     </td>
-                    <td className="px-6 py-4 text-white/60 text-sm">
-                      {subscriber.subscribed_date 
-                        ? format(new Date(subscriber.subscribed_date), "MMM d, yyyy")
-                        : subscriber.created_date 
-                          ? format(new Date(subscriber.created_date), "MMM d, yyyy")
-                          : "—"}
+                    <td className="px-6 py-4 text-white/60 text-sm whitespace-nowrap">
+                      {formatDate(subscriber.subscribed_date)}
                     </td>
                     <td className="px-6 py-4">
-                      {subscriber.is_active ? (
+                      {subscriber.is_active !== false ? (
                         <span className="px-2 py-1 bg-green-500/20 text-green-400 text-xs rounded">
                           Active
                         </span>
                       ) : (
                         <span className="px-2 py-1 bg-red-500/20 text-red-400 text-xs rounded">
-                          Unsubscribed
+                          Inactive
                         </span>
                       )}
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleToggleActive(subscriber.id, subscriber.is_active)}
-                          className="text-white/60 hover:text-gold"
-                          title={subscriber.is_active ? "Deactivate" : "Reactivate"}
-                        >
-                          <UserX size={16} />
-                        </Button>
+                      <div className="flex justify-end">
                         <Button
                           variant="ghost"
                           size="icon"
@@ -147,5 +153,5 @@ export default function SubscribersAdmin() {
         </div>
       </div>
     </div>
-  );
+  )
 }
