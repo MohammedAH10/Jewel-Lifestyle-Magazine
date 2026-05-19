@@ -23,6 +23,8 @@ const defaultForm = {
   is_featured: false,
   is_cover_story: false,
   published_date: new Date().toISOString().split('T')[0],
+  scheduled_date: '',
+  status: 'Draft',
 }
 
 export default function InterviewsAdmin() {
@@ -73,6 +75,8 @@ export default function InterviewsAdmin() {
       is_featured: interview.is_featured || false,
       is_cover_story: interview.is_cover_story || false,
       published_date: interview.published_date || defaultForm.published_date,
+      scheduled_date: interview.scheduled_date || '',
+      status: interview.status || 'Draft',
     })
     setIsDialogOpen(true)
   }
@@ -162,6 +166,8 @@ export default function InterviewsAdmin() {
                 <th className="text-left px-6 py-4 text-white/60 text-sm font-normal">Company</th>
                 <th className="text-left px-6 py-4 text-white/60 text-sm font-normal">Category</th>
                 <th className="text-left px-6 py-4 text-white/60 text-sm font-normal">Type</th>
+                <th className="text-left px-6 py-4 text-white/60 text-sm font-normal">Status</th>
+                <th className="text-left px-6 py-4 text-white/60 text-sm font-normal">Scheduled</th>
                 <th className="text-left px-6 py-4 text-white/60 text-sm font-normal">Featured</th>
                 <th className="text-right px-6 py-4 text-white/60 text-sm font-normal">Actions</th>
               </tr>
@@ -169,13 +175,13 @@ export default function InterviewsAdmin() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center">
+                  <td colSpan={8} className="px-6 py-12 text-center">
                     <Loader2 className="w-6 h-6 text-gold animate-spin mx-auto" />
                   </td>
                 </tr>
               ) : interviews.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-white/50">
+                  <td colSpan={8} className="px-6 py-12 text-center text-white/50">
                     No interviews yet
                   </td>
                 </tr>
@@ -199,6 +205,20 @@ export default function InterviewsAdmin() {
                       <span className="px-2 py-1 bg-gold/20 text-gold text-xs rounded">{interview.category}</span>
                     </td>
                     <td className="px-6 py-4 text-white/70">{interview.interview_type}</td>
+                    <td className="px-6 py-4">
+                      <span className={`px-2 py-1 text-xs rounded ${
+                        interview.published_date
+                          ? 'bg-green-500/20 text-green-400'
+                          : interview.scheduled_date
+                            ? 'bg-blue-500/20 text-blue-400'
+                            : 'bg-zinc-500/20 text-zinc-400'
+                      }`}>
+                        {interview.published_date ? 'Published' : interview.scheduled_date ? 'Scheduled' : 'Draft'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-white/70">
+                      {interview.scheduled_date || <span className="text-white/30">—</span>}
+                    </td>
                     <td className="px-6 py-4">
                       {interview.is_cover_story ? (
                         <span className="text-gold text-xs">Cover Story</span>
@@ -283,6 +303,26 @@ export default function InterviewsAdmin() {
               <div className="space-y-2">
                 <label className="text-sm text-white/60">Published Date</label>
                 <Input type="date" value={formData.published_date} onChange={(e) => setFormData({ ...formData, published_date: e.target.value })} className="bg-black border-gold/20 text-white" />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm text-white/60">Status</label>
+                <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
+                  <SelectTrigger className="bg-black border-gold/20 text-white">
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-zinc-900 border-gold/20">
+                    {['Draft', 'Scheduled', 'Published'].map((s) => (
+                      <SelectItem key={s} value={s} className="text-white">{s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm text-white/60">Scheduled Date</label>
+                <Input type="date" value={formData.scheduled_date} onChange={(e) => setFormData({ ...formData, scheduled_date: e.target.value })} className="bg-black border-gold/20 text-white" />
               </div>
             </div>
 

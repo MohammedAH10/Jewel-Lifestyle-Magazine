@@ -16,6 +16,8 @@ const executiveInterviewSchema = new mongoose.Schema({
   video_url: String,
   interview_type: { type: String, enum: ['Article', 'Q&A', 'Video'], default: 'Article' },
   published_date: String,
+  scheduled_date: String,
+  status: { type: String, enum: ['Draft', 'Scheduled', 'Published'], default: 'Draft' },
   is_featured: { type: Boolean, default: false },
   is_cover_story: { type: Boolean, default: false },
 }, { timestamps: true });

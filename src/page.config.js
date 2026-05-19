@@ -9,6 +9,7 @@ import About from './pages/About';
 import Contact from './pages/Contact';
 import SubmitStory from './pages/SubmitStory';
 import AdminDashboard from './pages/AdminDashboard';
+import Login from './pages/Login';
 import __Layout from './Layout.jsx';
 
 
@@ -24,6 +25,7 @@ export const PAGES = {
     "Contact": Contact,
     "SubmitStory": SubmitStory,
     "AdminDashboard": AdminDashboard,
+    "Login": Login,
 }
 
 export const pagesConfig = {

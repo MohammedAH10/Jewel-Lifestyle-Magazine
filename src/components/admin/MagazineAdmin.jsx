@@ -19,6 +19,9 @@ const defaultForm = {
   flipbook_url: '',
   pdf_url: '',
   is_current: false,
+  scheduled_date: '',
+  status: 'Draft',
+  article_content: '',
 }
 
 export default function MagazineAdmin() {
@@ -64,6 +67,9 @@ export default function MagazineAdmin() {
       flipbook_url: issue.flipbook_url || '',
       pdf_url: issue.pdf_url || '',
       is_current: issue.is_current || false,
+      scheduled_date: issue.scheduled_date || '',
+      status: issue.status || 'Draft',
+      article_content: issue.article_content || '',
     })
     setIsDialogOpen(true)
   }
@@ -180,10 +186,19 @@ export default function MagazineAdmin() {
                   </Button>
                 </div>
               </div>
-              <div className="p-4">
-                <h3 className="text-white font-medium truncate">{issue.title}</h3>
-                <p className="text-white/50 text-sm">{issue.month} {issue.year}</p>
-              </div>
+                <div className="p-4">
+                  <h3 className="text-white font-medium truncate">{issue.title}</h3>
+                  <p className="text-white/50 text-sm">{issue.month} {issue.year}</p>
+                  <span className={`inline-block mt-1 px-2 py-0.5 text-xs rounded ${
+                    issue.status === 'Published'
+                      ? 'bg-green-500/20 text-green-400'
+                      : issue.status === 'Scheduled'
+                        ? 'bg-blue-500/20 text-blue-400'
+                        : 'bg-zinc-500/20 text-zinc-400'
+                  }`}>
+                    {issue.status || 'Draft'}
+                  </span>
+                </div>
             </div>
           ))
         )}
@@ -238,6 +253,31 @@ export default function MagazineAdmin() {
             <div className="space-y-2">
               <label className="text-sm text-white/60">Description</label>
               <Textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="bg-black border-gold/20 text-white min-h-[100px]" placeholder="Brief description of this issue..." />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm text-white/60">Status</label>
+                <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
+                  <SelectTrigger className="bg-black border-gold/20 text-white">
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-zinc-900 border-gold/20">
+                    {['Draft', 'Scheduled', 'Published'].map((s) => (
+                      <SelectItem key={s} value={s} className="text-white">{s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm text-white/60">Scheduled Date</label>
+                <Input type="date" value={formData.scheduled_date} onChange={(e) => setFormData({ ...formData, scheduled_date: e.target.value })} className="bg-black border-gold/20 text-white" />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm text-white/60">Article Content</label>
+              <Textarea value={formData.article_content} onChange={(e) => setFormData({ ...formData, article_content: e.target.value })} className="bg-black border-gold/20 text-white min-h-[200px]" placeholder="Full magazine article content..." />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

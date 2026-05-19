@@ -25,6 +25,7 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/seed-images', express.static(path.join(__dirname, '..', 'images')));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/executives', executiveRoutes);

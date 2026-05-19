@@ -16,6 +16,7 @@ import HeroSlidesAdmin from '@/components/admin/HeroSlidesAdmin'
 import TeamAdmin from '@/components/admin/TeamAdmin'
 import SubmissionsAdmin from '@/components/admin/SubmissionsAdmin'
 import SubscribersAdmin from '@/components/admin/SubscribersAdmin'
+import InquiriesAdmin from '@/components/admin/InquiriesAdmin'
 
 const navItems = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
@@ -25,6 +26,7 @@ const navItems = [
   { id: 'awards', label: 'Awards & Winners', icon: Award },
   { id: 'team', label: 'Team Members', icon: Newspaper },
   { id: 'submissions', label: 'Story Submissions', icon: MessageSquare },
+  { id: 'inquiries', label: 'Ad Inquiries', icon: MessageSquare },
   { id: 'subscribers', label: 'Subscribers', icon: Mail },
 ]
 
@@ -40,13 +42,14 @@ export default function AdminDashboard() {
       async function fetchStats() {
         setLoadingStats(true)
         try {
-          const [interviews, subscribers, submissions, magazines] = await Promise.all([
+          const [interviews, subscribers, submissions, magazines, inquiries] = await Promise.all([
             api.get('/executives').then(d => d.length),
             api.get('/subscribers').then(d => d.length),
             api.get('/stories').then(d => d.length),
             api.get('/magazines').then(d => d.length),
+            api.get('/inquiries').then(d => d.length),
           ])
-          setStats({ interviews, subscribers, submissions, magazines })
+          setStats({ interviews, subscribers, submissions, magazines, inquiries })
         } catch {
           // stats stay at 0
         } finally {
@@ -118,6 +121,8 @@ export default function AdminDashboard() {
         return <TeamAdmin />
       case 'submissions':
         return <SubmissionsAdmin />
+      case 'inquiries':
+        return <InquiriesAdmin />
       case 'subscribers':
         return <SubscribersAdmin />
       default:

@@ -13,6 +13,9 @@ const magazineIssueSchema = new mongoose.Schema({
   pdf_url: String,
   flipbook_url: String,
   description: String,
+  article_content: String,
+  scheduled_date: String,
+  status: { type: String, enum: ['Draft', 'Scheduled', 'Published'], default: 'Draft' },
   is_current: { type: Boolean, default: false },
 }, { timestamps: true });
 
