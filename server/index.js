@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
+import mongoose from 'mongoose';
 import { fileURLToPath } from 'url';
 import connectDB from './config/db.js';
 import authRoutes from './routes/auth.js';
@@ -30,6 +31,33 @@ if (!process.env.VERCEL) {
   app.use('/seed-images', express.static(path.join(__dirname, '..', 'images')));
 }
 
+let dbPromise = null;
+function ensureDB() {
+  if (!dbPromise) {
+    dbPromise = connectDB().catch(err => {
+      console.error('MongoDB connection:', err.message);
+      dbPromise = null;
+    });
+  }
+  return dbPromise;
+}
+
+if (process.env.VERCEL) {
+  app.use(async (req, res, next) => {
+    if (mongoose.connection.readyState !== 1) {
+      try {
+        await ensureDB();
+      } catch {
+        return res.status(503).json({ error: 'Database unavailable' });
+      }
+      if (mongoose.connection.readyState !== 1) {
+        return res.status(503).json({ error: 'Database unavailable' });
+      }
+    }
+    next();
+  });
+}
+
 app.use('/api/auth', authRoutes);
 app.use('/api/executives', executiveRoutes);
 app.use('/api/magazines', magazineRoutes);
@@ -53,7 +81,10 @@ const start = async () => {
 };
 
 if (!process.env.VERCEL) {
-  start();
+  start().catch(err => {
+    console.error('Failed to start server:', err.message);
+    process.exit(1);
+  });
 }
 
 export default app;

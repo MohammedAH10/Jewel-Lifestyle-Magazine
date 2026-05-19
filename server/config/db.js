@@ -1,13 +1,17 @@
 import mongoose from 'mongoose';
 
 const connectDB = async () => {
+  if (mongoose.connection.readyState === 1) return;
   const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/jewel-magazine';
   try {
-    await mongoose.connect(uri);
+    await mongoose.connect(uri, {
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+    });
     console.log('MongoDB connected');
   } catch (err) {
-    console.error('MongoDB connection error:', err);
-    process.exit(1);
+    console.error('MongoDB connection error:', err.message);
+    throw err;
   }
 };
 
