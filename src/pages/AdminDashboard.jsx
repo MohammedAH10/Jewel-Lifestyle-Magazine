@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useAuth } from '@/lib/AuthContext'
 import { api } from '@/api/client'
 import { motion } from 'framer-motion'
@@ -30,11 +30,32 @@ const navItems = [
   { id: 'subscribers', label: 'Subscribers', icon: Mail },
 ]
 
+function ErrorFallback({ error, reset }) {
+  return (
+    <div className="p-8 text-center">
+      <p className="text-red-400 font-gilda text-xl mb-4">Something went wrong</p>
+      <pre className="text-white/50 text-sm mb-4 max-w-xl mx-auto overflow-auto">{error?.message}</pre>
+      <button onClick={reset} className="gradient-gold text-black px-6 py-2 text-sm uppercase tracking-wider">Retry</button>
+    </div>
+  )
+}
+
+class AdminErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { error: null } }
+  static getDerivedStateFromError(error) { return { error } }
+  render() {
+    if (this.state.error) {
+      return <ErrorFallback error={this.state.error} reset={() => this.setState({ error: null })} />
+    }
+    return this.props.children
+  }
+}
+
 export default function AdminDashboard() {
   const { user, isAuthenticated, isLoadingAuth, logout } = useAuth()
   const [activeTab, setActiveTab] = useState('overview')
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [stats, setStats] = useState({ interviews: 0, subscribers: 0, submissions: 0, magazines: 0 })
+  const [stats, setStats] = useState({ interviews: 0, subscribers: 0, submissions: 0, magazines: 0, inquiries: 0 })
   const [loadingStats, setLoadingStats] = useState(true)
 
   useEffect(() => {
@@ -226,14 +247,16 @@ export default function AdminDashboard() {
 
         {/* Content */}
         <main className="flex-1 p-4 lg:p-8 overflow-y-auto">
-          <motion.div
-            key={activeTab}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.25 }}
-          >
-            {renderContent()}
-          </motion.div>
+          <AdminErrorBoundary>
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.25 }}
+            >
+              {renderContent()}
+            </motion.div>
+          </AdminErrorBoundary>
         </main>
       </div>
     </div>

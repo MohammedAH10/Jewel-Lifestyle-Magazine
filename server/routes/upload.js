@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { authenticate, adminOnly } from '../middleware/auth.js';
-import cloudinary from '../config/cloudinary.js';
+import cloudinary, { ensureCloudinary } from '../config/cloudinary.js';
 
 const router = Router();
 
@@ -22,7 +22,7 @@ const upload = multer({
 router.post('/', authenticate, adminOnly, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-    if (process.env.CLOUDINARY_CLOUD_NAME) {
+    if (ensureCloudinary()) {
       return new Promise((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
           { folder: 'jewel-magazine', resource_type: 'auto' },
