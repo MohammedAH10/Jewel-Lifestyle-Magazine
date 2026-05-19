@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useAuth } from '@/lib/AuthContext'
 import { useNavigate, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { LogIn, Loader2, Eye, EyeOff, UserPlus, ShieldAlert, MailCheck } from 'lucide-react'
+import { LogIn, Loader2, Eye, EyeOff, UserPlus } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { createPageUrl } from '@/utils'
@@ -50,15 +50,7 @@ export default function Login() {
       }
       navigate(createPageUrl('AdminDashboard'))
     } catch (err) {
-      if (err.code === 'DEVICE_PENDING_APPROVAL') {
-        setError('This device is not recognized. An approval request has been sent to the admin email. Please check your email to approve this device.')
-      } else if (err.code === 'DEVICE_NOT_APPROVED') {
-        setError('This device has not been approved yet. Please wait for admin approval.')
-      } else if (err.code === 'DEVICE_INACTIVE') {
-        setError('This device has been deactivated. Contact an admin for access.')
-      } else {
-        setError(err.message || 'Something went wrong. Please try again.')
-      }
+      setError(err.message || 'Something went wrong. Please try again.')
     } finally {
       setLoading(false)
     }

@@ -17,20 +17,6 @@ class ApiClient {
     }
   }
 
-  getDeviceHeaders() {
-    const uuid = localStorage.getItem('jewel_device_uuid');
-    const ua = navigator.userAgent;
-    let name = 'Unknown';
-    if (ua.includes('Chrome')) name = 'Chrome';
-    else if (ua.includes('Firefox')) name = 'Firefox';
-    else if (ua.includes('Safari') && !ua.includes('Chrome')) name = 'Safari';
-    else if (ua.includes('Edge')) name = 'Edge';
-    const headers = {};
-    if (uuid) headers['x-device-uuid'] = uuid;
-    headers['x-device-name'] = name;
-    return headers;
-  }
-
   async request(endpoint, options = {}) {
     const { method = 'GET', body, isFormData = false, params } = options;
     let url = `${this.baseUrl}${endpoint}`;
@@ -53,7 +39,6 @@ class ApiClient {
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
-    Object.assign(headers, this.getDeviceHeaders());
 
     const config = { method, headers };
     if (body) {
@@ -64,11 +49,7 @@ class ApiClient {
     const data = await response.json();
 
     if (!response.ok) {
-      const err = new Error(data.error || `Request failed with status ${response.status}`);
-      err.status = response.status;
-      err.code = data.code;
-      err.data = data;
-      throw err;
+      throw new Error(data.error || `Request failed with status ${response.status}`);
     }
 
     return data;

@@ -5,7 +5,7 @@ import { motion } from 'framer-motion'
 import {
   LayoutDashboard, Newspaper, Users, Award, Image, BookOpen,
   Mail, MessageSquare, LogOut, Menu, X, ChevronRight,
-  FileText, BarChart3, TrendingUp, Eye, Shield
+  FileText, BarChart3, TrendingUp, Eye
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { createPageUrl } from '@/utils'
@@ -17,7 +17,6 @@ import TeamAdmin from '@/components/admin/TeamAdmin'
 import SubmissionsAdmin from '@/components/admin/SubmissionsAdmin'
 import SubscribersAdmin from '@/components/admin/SubscribersAdmin'
 import InquiriesAdmin from '@/components/admin/InquiriesAdmin'
-import DevicesAdmin from '@/components/admin/DevicesAdmin'
 
 const navItems = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
@@ -29,7 +28,6 @@ const navItems = [
   { id: 'submissions', label: 'Story Submissions', icon: MessageSquare },
   { id: 'inquiries', label: 'Ad Inquiries', icon: MessageSquare },
   { id: 'subscribers', label: 'Subscribers', icon: Mail },
-  { id: 'devices', label: 'Devices', icon: Shield },
 ]
 
 function ErrorFallback({ error, reset }) {
@@ -148,8 +146,6 @@ export default function AdminDashboard() {
         return <InquiriesAdmin />
       case 'subscribers':
         return <SubscribersAdmin />
-      case 'devices':
-        return <DevicesAdmin />
       default:
         return <OverviewTab stats={stats} loading={loadingStats} />
     }
