@@ -1,16 +1,14 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { authenticate, adminOnly } from '../middleware/auth.js';
-import cloudinary, { ensureCloudinary } from '../config/cloudinary.js';
 
 const router = Router();
 
-const storage = multer.memoryStorage();
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf'];
+    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
     if (allowed.includes(file.mimetype)) {
       cb(null, true);
     } else {
@@ -22,27 +20,9 @@ const upload = multer({
 router.post('/', authenticate, adminOnly, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-    if (ensureCloudinary()) {
-      return new Promise((resolve, reject) => {
-        const stream = cloudinary.uploader.upload_stream(
-          { folder: 'jewel-magazine', resource_type: 'auto' },
-          (err, result) => {
-            if (err) return reject(err);
-            res.json({ file_url: result.secure_url, public_id: result.public_id });
-          }
-        );
-        stream.end(req.file.buffer);
-      });
-    }
-    const filename = `${Date.now()}-${req.file.originalname}`;
-    const fs = await import('fs/promises');
-    const path = await import('path');
-    const uploadDir = path.resolve('server/uploads');
-    await fs.mkdir(uploadDir, { recursive: true });
-    const filepath = path.join(uploadDir, filename);
-    await fs.writeFile(filepath, req.file.buffer);
-    const file_url = `/uploads/${filename}`;
-    res.json({ file_url });
+    const base64 = req.file.buffer.toString('base64');
+    const dataUrl = `data:${req.file.mimetype};base64,${base64}`;
+    res.json({ file_url: dataUrl });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

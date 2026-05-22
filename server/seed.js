@@ -1,5 +1,4 @@
 import mongoose from 'mongoose';
-import { v2 as cloudinary } from 'cloudinary';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -11,38 +10,26 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/jewel-magazine';
 const IMAGES_DIR = path.resolve(__dirname, '..', 'images');
-const USE_CLOUDINARY = !!(process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET);
-
-if (USE_CLOUDINARY) {
-  cloudinary.config({
-    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-    api_key: process.env.CLOUDINARY_API_KEY,
-    api_secret: process.env.CLOUDINARY_API_SECRET,
-  });
-}
 
 async function uploadImage(filePath) {
   const filename = path.basename(filePath);
-  if (USE_CLOUDINARY) {
-    try {
-      const result = await cloudinary.uploader.upload(filePath, {
-        folder: 'jewel-magazine/seed',
-        public_id: path.parse(filename).name,
-      });
-      console.log(`  Uploaded ${filename} -> ${result.secure_url}`);
-      return result.secure_url;
-    } catch (err) {
-      console.error(`  Failed to upload ${filename} to Cloudinary:`, err.message);
-      return null;
-    }
+  try {
+    const buffer = fs.readFileSync(filePath);
+    const ext = path.extname(filename).toLowerCase();
+    const mimeMap = { '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp' };
+    const mime = mimeMap[ext] || 'image/jpeg';
+    const base64 = buffer.toString('base64');
+    const dataUrl = `data:${mime};base64,${base64}`;
+    console.log(`  Loaded ${filename} (${(buffer.length / 1024).toFixed(1)}KB)`);
+    return dataUrl;
+  } catch (err) {
+    console.error(`  Failed to read ${filename}:`, err.message);
+    return null;
   }
-  const publicPath = `/seed-images/${filename}`;
-  console.log(`  Using local path for ${filename} -> ${publicPath}`);
-  return publicPath;
 }
 
 function img(urls, name) {
-  return urls[name] || null;
+  return urls[name] || `https://placehold.co/600x800/0a0a0a/D4AF37?text=${encodeURIComponent(name)}`;
 }
 function imgOrPlaceholder(urls, name, placeholder) {
   return urls[name] || placeholder;
