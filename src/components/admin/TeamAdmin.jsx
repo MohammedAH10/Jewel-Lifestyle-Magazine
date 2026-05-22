@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 
 const defaultForm = {
@@ -99,12 +99,10 @@ export default function TeamAdmin() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <p className="text-white/60">Manage Jewel team members</p>
-        <DialogTrigger asChild>
-          <Button onClick={openAdd} className="gradient-gold text-black">
+        <Button onClick={openAdd} className="gradient-gold text-black">
             <Plus size={18} className="mr-2" />
             Add Team Member
           </Button>
-        </DialogTrigger>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">

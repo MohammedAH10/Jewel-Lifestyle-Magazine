@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 
@@ -105,12 +105,10 @@ export default function HeroSlidesAdmin() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <p className="text-white/60">Manage homepage hero carousel slides</p>
-        <DialogTrigger asChild>
-          <Button onClick={openAdd} className="gradient-gold text-black">
+        <Button onClick={openAdd} className="gradient-gold text-black">
             <Plus size={18} className="mr-2" />
             Add Slide
           </Button>
-        </DialogTrigger>
       </div>
 
       <div className="space-y-4">

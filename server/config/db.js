@@ -1,5 +1,9 @@
 import mongoose from 'mongoose';
 
+mongoose.plugin(function(schema) {
+  schema.set('toJSON', { virtuals: true });
+});
+
 const connectDB = async () => {
   if (mongoose.connection.readyState === 1) return;
   const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/jewel-magazine';

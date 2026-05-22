@@ -1,12 +1,27 @@
 import { useState, useEffect } from 'react'
 import { api } from '@/api/client'
-import { Plus, Edit2, Trash2, Loader2, Trophy, Users } from 'lucide-react'
+import { Plus, Edit2, Trash2, Loader2, Trophy, Users, List, ChevronDown, ChevronUp } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+
+const defaultCatForm = {
+  name: '',
+  description: '',
+  vote_type: 'single',
+  year: new Date().getFullYear(),
+  active: true,
+}
+
+const defaultNomineeForm = {
+  name: '',
+  title: '',
+  company: '',
+  bio: '',
+}
 
 const defaultWinnerForm = {
   name: '',
@@ -18,18 +33,40 @@ const defaultWinnerForm = {
 }
 
 export default function AwardsAdmin() {
-  const [activeTab, setActiveTab] = useState('winners')
+  const [activeTab, setActiveTab] = useState('categories')
+  const [categories, setCategories] = useState([])
   const [winners, setWinners] = useState([])
-  const [nominations, setNominations] = useState([])
+  const [votes, setVotes] = useState([])
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState({ type: '', text: '' })
 
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [dialogType, setDialogType] = useState('winner')
-  const [editingItem, setEditingItem] = useState(null)
+  const [catDialogOpen, setCatDialogOpen] = useState(false)
+  const [editingCat, setEditingCat] = useState(null)
+  const [catForm, setCatForm] = useState(defaultCatForm)
   const [submitting, setSubmitting] = useState(false)
+
+  const [nomineeDialogOpen, setNomineeDialogOpen] = useState(false)
+  const [editingNomineeIdx, setEditingNomineeIdx] = useState(null)
+  const [nomineeParentCat, setNomineeParentCat] = useState(null)
+  const [nomineeForm, setNomineeForm] = useState(defaultNomineeForm)
+  const [nomineeImageFile, setNomineeImageFile] = useState(null)
+
+  const [winnerDialogOpen, setWinnerDialogOpen] = useState(false)
+  const [editingWinner, setEditingWinner] = useState(null)
   const [winnerForm, setWinnerForm] = useState(defaultWinnerForm)
   const [photoFile, setPhotoFile] = useState(null)
+
+  const [expandedCat, setExpandedCat] = useState(null)
+  const [selectedVoteCat, setSelectedVoteCat] = useState(null)
+
+  const fetchCategories = async () => {
+    try {
+      const res = await api.get('/award-categories')
+      setCategories(Array.isArray(res) ? res : res.data || [])
+    } catch (err) {
+      setMessage({ type: 'error', text: 'Failed to load categories' })
+    }
+  }
 
   const fetchWinners = async () => {
     try {
@@ -40,32 +77,138 @@ export default function AwardsAdmin() {
     }
   }
 
-  const fetchNominations = async () => {
+  const fetchVotes = async (categoryId) => {
+    if (!categoryId) { setVotes([]); return }
     try {
-      const res = await api.get('/awards/nominations')
-      setNominations(Array.isArray(res) ? res : res.data || [])
+      const res = await api.get(`/award-categories/${categoryId}/votes`)
+      setVotes(Array.isArray(res) ? res : res.data || [])
     } catch (err) {
-      setMessage({ type: 'error', text: 'Failed to load nominations' })
+      setVotes([])
     }
   }
 
   const fetchAll = async () => {
     setLoading(true)
     setMessage({ type: '', text: '' })
-    await Promise.all([fetchWinners(), fetchNominations()])
+    await Promise.all([fetchCategories(), fetchWinners()])
     setLoading(false)
   }
 
   useEffect(() => { fetchAll() }, [])
 
-  const resetWinnerForm = () => {
-    setWinnerForm(defaultWinnerForm)
-    setPhotoFile(null)
-    setEditingItem(null)
+  const resetCatForm = () => {
+    setCatForm(defaultCatForm)
+    setEditingCat(null)
   }
 
+  // Category CRUD
+  const handleEditCat = (cat) => {
+    setEditingCat(cat)
+    setCatForm({
+      name: cat.name || '',
+      description: cat.description || '',
+      vote_type: cat.vote_type || 'single',
+      year: cat.year || new Date().getFullYear(),
+      active: cat.active !== false,
+    })
+    setCatDialogOpen(true)
+  }
+
+  const handleDeleteCat = async (id) => {
+    if (!confirm('Delete this category and all its votes?')) return
+    try {
+      await api.delete(`/award-categories/${id}`)
+      setMessage({ type: 'success', text: 'Category deleted' })
+      fetchCategories()
+    } catch (err) {
+      setMessage({ type: 'error', text: err.message || 'Failed to delete' })
+    }
+  }
+
+  const handleSubmitCat = async (e) => {
+    e.preventDefault()
+    setSubmitting(true)
+    setMessage({ type: '', text: '' })
+    try {
+      const data = { ...catForm, year: parseInt(catForm.year) }
+      if (editingCat) {
+        await api.put(`/award-categories/${editingCat.id}`, data)
+        setMessage({ type: 'success', text: 'Category updated' })
+      } else {
+        await api.post('/award-categories', data)
+        setMessage({ type: 'success', text: 'Category created' })
+      }
+      setCatDialogOpen(false)
+      resetCatForm()
+      fetchCategories()
+    } catch (err) {
+      setMessage({ type: 'error', text: err.message || 'Failed to save' })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  // Nominee CRUD
+  const openAddNominee = (cat) => {
+    setNomineeParentCat(cat)
+    setEditingNomineeIdx(null)
+    setNomineeForm(defaultNomineeForm)
+    setNomineeImageFile(null)
+    setNomineeDialogOpen(true)
+  }
+
+  const openEditNominee = (cat, idx) => {
+    const nominee = cat.nominees[idx]
+    setNomineeParentCat(cat)
+    setEditingNomineeIdx(idx)
+    setNomineeForm({
+      name: nominee.name || '',
+      title: nominee.title || '',
+      company: nominee.company || '',
+      bio: nominee.bio || '',
+    })
+    setNomineeImageFile(null)
+    setNomineeDialogOpen(true)
+  }
+
+  const handleDeleteNominee = async (cat, idx) => {
+    if (!confirm('Remove this nominee?')) return
+    try {
+      const updated = { nominees: cat.nominees.filter((_, i) => i !== idx) }
+      await api.put(`/award-categories/${cat.id}`, updated)
+      fetchCategories()
+    } catch (err) {
+      setMessage({ type: 'error', text: err.message || 'Failed to remove nominee' })
+    }
+  }
+
+  const handleSubmitNominee = async (e) => {
+    e.preventDefault()
+    setSubmitting(true)
+    setMessage({ type: '', text: '' })
+    try {
+      let image = editingNomineeIdx != null ? nomineeParentCat.nominees[editingNomineeIdx]?.image || '' : ''
+      if (nomineeImageFile) {
+        const { file_url } = await api.uploadFile(nomineeImageFile)
+        image = file_url
+      }
+      const nomineeData = { ...nomineeForm, image }
+      const updatedNominees = editingNomineeIdx != null
+        ? nomineeParentCat.nominees.map((n, i) => i === editingNomineeIdx ? nomineeData : n)
+        : [...(nomineeParentCat.nominees || []), nomineeData]
+      await api.put(`/award-categories/${nomineeParentCat.id}`, { nominees: updatedNominees })
+      setNomineeDialogOpen(false)
+      fetchCategories()
+    } catch (err) {
+      setMessage({ type: 'error', text: err.message || 'Failed to save nominee' })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  // Winner CRUD (existing)
   const handleEditWinner = (winner) => {
-    setEditingItem(winner)
+    setEditingWinner(winner)
     setWinnerForm({
       name: winner.name || '',
       title: winner.title || '',
@@ -74,18 +217,17 @@ export default function AwardsAdmin() {
       year: winner.year || new Date().getFullYear(),
       bio: winner.bio || '',
     })
-    setDialogType('winner')
-    setIsDialogOpen(true)
+    setWinnerDialogOpen(true)
   }
 
   const handleDeleteWinner = async (id) => {
-    if (!confirm('Are you sure you want to delete this winner?')) return
+    if (!confirm('Delete this winner?')) return
     try {
       await api.delete(`/awards/winners/${id}`)
-      setMessage({ type: 'success', text: 'Winner deleted successfully' })
+      setMessage({ type: 'success', text: 'Winner deleted' })
       fetchWinners()
     } catch (err) {
-      setMessage({ type: 'error', text: err.message || 'Failed to delete winner' })
+      setMessage({ type: 'error', text: err.message || 'Failed to delete' })
     }
   }
 
@@ -93,53 +235,45 @@ export default function AwardsAdmin() {
     e.preventDefault()
     setSubmitting(true)
     setMessage({ type: '', text: '' })
-
     try {
-      let photo_url = editingItem?.photo_url || ''
-
+      let photo_url = editingWinner?.photo_url || ''
       if (photoFile) {
         const { file_url } = await api.uploadFile(photoFile)
         photo_url = file_url
       }
-
-      const data = { ...winnerForm, photo_url }
-
-      if (editingItem) {
-        await api.put(`/awards/winners/${editingItem.id}`, data)
-        setMessage({ type: 'success', text: 'Winner updated successfully' })
+      const data = { ...winnerForm, photo_url, year: parseInt(winnerForm.year) }
+      if (editingWinner) {
+        await api.put(`/awards/winners/${editingWinner.id}`, data)
       } else {
         await api.post('/awards/winners', data)
-        setMessage({ type: 'success', text: 'Winner created successfully' })
       }
-
-      setIsDialogOpen(false)
-      resetWinnerForm()
+      setWinnerDialogOpen(false)
+      setEditingWinner(null)
+      setWinnerForm(defaultWinnerForm)
+      setPhotoFile(null)
       fetchWinners()
     } catch (err) {
-      setMessage({ type: 'error', text: err.message || 'Failed to save winner' })
+      setMessage({ type: 'error', text: err.message || 'Failed to save' })
     } finally {
       setSubmitting(false)
     }
   }
 
-  const handleUpdateNominationStatus = async (nominationId, status) => {
-    try {
-      await api.put(`/awards/nominations/${nominationId}`, { status })
-      setMessage({ type: 'success', text: 'Nomination status updated' })
-      fetchNominations()
-    } catch (err) {
-      setMessage({ type: 'error', text: err.message || 'Failed to update status' })
-    }
+  // Votes view
+  const handleViewVotes = async (cat) => {
+    setSelectedVoteCat(cat)
+    await fetchVotes(cat.id)
   }
 
-  const nominationStatuses = ['Pending', 'Under Review', 'Shortlisted', 'Winner', 'Not Selected']
-
-  const statusColors = {
-    'Pending': 'bg-yellow-500/20 text-yellow-400',
-    'Under Review': 'bg-blue-500/20 text-blue-400',
-    'Shortlisted': 'bg-purple-500/20 text-purple-400',
-    'Winner': 'bg-green-500/20 text-green-400',
-    'Not Selected': 'bg-red-500/20 text-red-400',
+  const getVoteCounts = (cat) => {
+    const counts = {}
+    cat.nominees?.forEach(n => { counts[n.name] = 0 })
+    votes.forEach(v => {
+      v.selected_nominees.forEach(name => {
+        if (counts[name] !== undefined) counts[name]++
+      })
+    })
+    return counts
   }
 
   return (
@@ -156,23 +290,193 @@ export default function AwardsAdmin() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="bg-black border border-gold/20">
+          <TabsTrigger value="categories" className="data-[state=active]:bg-gold/20 data-[state=active]:text-gold">
+            <List size={16} className="mr-2" />
+            Categories
+          </TabsTrigger>
+          <TabsTrigger value="votes" className="data-[state=active]:bg-gold/20 data-[state=active]:text-gold">
+            <Users size={16} className="mr-2" />
+            Votes
+          </TabsTrigger>
           <TabsTrigger value="winners" className="data-[state=active]:bg-gold/20 data-[state=active]:text-gold">
             <Trophy size={16} className="mr-2" />
             Past Winners
           </TabsTrigger>
-          <TabsTrigger value="nominations" className="data-[state=active]:bg-gold/20 data-[state=active]:text-gold">
-            <Users size={16} className="mr-2" />
-            Nominations
-          </TabsTrigger>
         </TabsList>
 
+        {/* Categories Tab */}
+        <TabsContent value="categories" className="space-y-6">
+          <div className="flex justify-between items-center">
+            <p className="text-white/60">Manage award categories and nominees</p>
+            <Button onClick={() => { resetCatForm(); setCatDialogOpen(true) }} className="gradient-gold text-black">
+              <Plus size={18} className="mr-2" />
+              Add Category
+            </Button>
+          </div>
+
+          {loading ? (
+            <div className="text-center py-12">
+              <Loader2 className="w-6 h-6 text-gold animate-spin mx-auto" />
+            </div>
+          ) : categories.length === 0 ? (
+            <div className="text-center py-12 text-white/50">No categories yet</div>
+          ) : (
+            <div className="space-y-4">
+              {categories.map((cat) => (
+                <div key={cat.id} className="bg-black border border-gold/20 overflow-hidden">
+                  <div className="p-4 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <button onClick={() => setExpandedCat(expandedCat === cat.id ? null : cat.id)} className="text-white/40 hover:text-gold transition-colors">
+                        {expandedCat === cat.id ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                      </button>
+                      <div>
+                        <h3 className="text-white font-medium">{cat.name}</h3>
+                        <p className="text-white/50 text-sm">
+                          {cat.year} &middot; {cat.vote_type === 'single' ? 'Single Choice' : 'Multi Choice'}
+                          &middot; {cat.nominees?.length || 0} nominees
+                          &middot; {cat.active ? 'Active' : 'Inactive'}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="ghost" onClick={() => openAddNominee(cat)} className="text-gold text-xs">
+                        <Plus size={14} className="mr-1" /> Nominee
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => handleEditCat(cat)} className="text-white/60 hover:text-gold">
+                        <Edit2 size={14} />
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => handleDeleteCat(cat.id)} className="text-white/60 hover:text-red-400">
+                        <Trash2 size={14} />
+                      </Button>
+                    </div>
+                  </div>
+
+                  {expandedCat === cat.id && (
+                    <div className="border-t border-gold/10 p-4">
+                      {cat.description && <p className="text-white/50 text-sm mb-4">{cat.description}</p>}
+                      {(!cat.nominees || cat.nominees.length === 0) ? (
+                        <p className="text-white/30 text-sm">No nominees yet</p>
+                      ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {cat.nominees.map((nominee, idx) => (
+                            <div key={idx} className="bg-zinc-900 border border-gold/10 overflow-hidden group">
+                              <div className="aspect-square relative">
+                                {nominee.image ? (
+                                  <img src={nominee.image} alt={nominee.name} className="w-full h-full object-cover" />
+                                ) : (
+                                  <div className="w-full h-full bg-zinc-800 flex items-center justify-center">
+                                    <span className="font-gilda text-4xl text-gold/30">
+                                      {(nominee.name || '?').charAt(0).toUpperCase()}
+                                    </span>
+                                  </div>
+                                )}
+                                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                  <Button size="icon" variant="ghost" onClick={() => openEditNominee(cat, idx)} className="text-white hover:text-gold">
+                                    <Edit2 size={16} />
+                                  </Button>
+                                  <Button size="icon" variant="ghost" onClick={() => handleDeleteNominee(cat, idx)} className="text-white hover:text-red-400">
+                                    <Trash2 size={16} />
+                                  </Button>
+                                </div>
+                              </div>
+                              <div className="p-3">
+                                <p className="text-white text-sm font-medium">{nominee.name}</p>
+                                {nominee.title && <p className="text-white/50 text-xs">{nominee.title}</p>}
+                                {nominee.company && <p className="text-white/40 text-xs">{nominee.company}</p>}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* Votes Tab */}
+        <TabsContent value="votes" className="space-y-6">
+          <p className="text-white/60">View votes per category</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {categories.filter(c => c.active).map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() => handleViewVotes(cat)}
+                className={`text-left p-4 border transition-colors ${
+                  selectedVoteCat?.id === cat.id
+                    ? 'border-gold bg-gold/10'
+                    : 'border-gold/20 hover:border-gold/40'
+                }`}
+              >
+                <p className="text-white font-medium text-sm">{cat.name}</p>
+                <p className="text-white/50 text-xs mt-1">{cat.year}</p>
+              </button>
+            ))}
+          </div>
+
+          {selectedVoteCat && (
+            <div className="bg-black border border-gold/20 overflow-hidden">
+              <div className="p-4 border-b border-gold/10">
+                <h3 className="text-white font-medium">{selectedVoteCat.name} — Vote Results</h3>
+                <p className="text-white/50 text-sm">{votes.length} total votes</p>
+              </div>
+              {votes.length === 0 ? (
+                <div className="p-4 text-center text-white/50">No votes yet</div>
+              ) : (
+                <div className="p-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                    {Object.entries(getVoteCounts(selectedVoteCat)).map(([name, count]) => (
+                      <div key={name} className="bg-zinc-900 border border-gold/10 p-3">
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-white text-sm">{name}</span>
+                          <span className="text-gold font-bold">{count}</span>
+                        </div>
+                        <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
+                          <div
+                            className="h-full gradient-gold rounded-full transition-all"
+                            style={{ width: `${votes.length ? (count / votes.length) * 100 : 0}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-gold/10">
+                          <th className="text-left px-4 py-2 text-white/60 text-sm font-normal">Voter</th>
+                          <th className="text-left px-4 py-2 text-white/60 text-sm font-normal">Email</th>
+                          <th className="text-left px-4 py-2 text-white/60 text-sm font-normal">Voted For</th>
+                          <th className="text-left px-4 py-2 text-white/60 text-sm font-normal">Date</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {votes.map((vote) => (
+                          <tr key={vote.id} className="border-b border-gold/10">
+                            <td className="px-4 py-3 text-white">{vote.voter_name}</td>
+                            <td className="px-4 py-3 text-white/60 text-sm">{vote.voter_email}</td>
+                            <td className="px-4 py-3 text-white/70 text-sm">{vote.selected_nominees?.join(', ')}</td>
+                            <td className="px-4 py-3 text-white/40 text-sm">
+                              {new Date(vote.createdAt).toLocaleDateString()}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* Winners Tab */}
         <TabsContent value="winners" className="space-y-6">
           <div className="flex justify-between items-center">
-            <p className="text-white/60">Manage award winners</p>
-            <Button
-              onClick={() => { resetWinnerForm(); setDialogType('winner'); setIsDialogOpen(true) }}
-              className="gradient-gold text-black"
-            >
+            <p className="text-white/60">Manage past award winners</p>
+            <Button onClick={() => { setEditingWinner(null); setWinnerForm(defaultWinnerForm); setPhotoFile(null); setWinnerDialogOpen(true) }} className="gradient-gold text-black">
               <Plus size={18} className="mr-2" />
               Add Winner
             </Button>
@@ -184,9 +488,7 @@ export default function AwardsAdmin() {
                 <Loader2 className="w-6 h-6 text-gold animate-spin mx-auto" />
               </div>
             ) : winners.length === 0 ? (
-              <div className="col-span-full text-center py-12 text-white/50">
-                No winners added yet
-              </div>
+              <div className="col-span-full text-center py-12 text-white/50">No winners added yet</div>
             ) : (
               winners.map((winner) => (
                 <div key={winner.id} className="bg-black border border-gold/20 overflow-hidden group">
@@ -221,98 +523,117 @@ export default function AwardsAdmin() {
             )}
           </div>
         </TabsContent>
-
-        <TabsContent value="nominations" className="space-y-6">
-          <p className="text-white/60">Review and manage award nominations</p>
-
-          <div className="bg-black border border-gold/20 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-gold/10">
-                    <th className="text-left px-6 py-4 text-white/60 text-sm font-normal">Nominee</th>
-                    <th className="text-left px-6 py-4 text-white/60 text-sm font-normal">Category</th>
-                    <th className="text-left px-6 py-4 text-white/60 text-sm font-normal">Nominator</th>
-                    <th className="text-left px-6 py-4 text-white/60 text-sm font-normal">Status</th>
-                    <th className="text-right px-6 py-4 text-white/60 text-sm font-normal">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {loading ? (
-                    <tr>
-                      <td colSpan={5} className="px-6 py-12 text-center">
-                        <Loader2 className="w-6 h-6 text-gold animate-spin mx-auto" />
-                      </td>
-                    </tr>
-                  ) : nominations.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="px-6 py-12 text-center text-white/50">
-                        No nominations yet
-                      </td>
-                    </tr>
-                  ) : (
-                    nominations.map((nomination) => (
-                      <tr key={nomination.id} className="border-b border-gold/10 hover:bg-gold/5">
-                        <td className="px-6 py-4">
-                          <div>
-                            <p className="text-white">{nomination.nominee_name}</p>
-                            <p className="text-white/50 text-sm">{nomination.nominee_title}</p>
-                            {nomination.nominee_company && (
-                              <p className="text-white/40 text-xs">{nomination.nominee_company}</p>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-white/70">{nomination.award_category}</td>
-                        <td className="px-6 py-4">
-                          <div>
-                            <p className="text-white/70">{nomination.nominator_name}</p>
-                            <p className="text-white/50 text-sm">{nomination.nominator_email}</p>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <Select
-                            value={nomination.status || 'Pending'}
-                            onValueChange={(value) => handleUpdateNominationStatus(nomination.id, value)}
-                          >
-                            <SelectTrigger className={`text-sm px-3 py-1 h-8 border-0 ${statusColors[nomination.status || 'Pending']}`}>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent className="bg-zinc-900 border-gold/20">
-                              {nominationStatuses.map((status) => (
-                                <SelectItem key={status} value={status} className="text-white">{status}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex justify-end">
-                            <Button
-                              variant="ghost" size="sm"
-                              onClick={() => { setEditingItem(nomination); setDialogType('viewNomination'); setIsDialogOpen(true) }}
-                              className="text-gold text-xs"
-                            >
-                              View Details
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </TabsContent>
       </Tabs>
 
-      <Dialog open={isDialogOpen && dialogType === 'winner'} onOpenChange={setIsDialogOpen}>
+      {/* Category Dialog */}
+      <Dialog open={catDialogOpen} onOpenChange={setCatDialogOpen}>
         <DialogContent className="bg-zinc-900 border-gold/20 text-white max-w-2xl">
           <DialogHeader>
             <DialogTitle className="font-gilda text-2xl">
-              {editingItem ? 'Edit Winner' : 'Add New Winner'}
+              {editingCat ? 'Edit Category' : 'Add New Category'}
             </DialogTitle>
           </DialogHeader>
+          <form onSubmit={handleSubmitCat} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm text-white/60">Name *</label>
+                <Input required value={catForm.name} onChange={(e) => setCatForm({ ...catForm, name: e.target.value })} className="bg-black border-gold/20 text-white" placeholder="e.g., Male Entrepreneur of the Year" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm text-white/60">Year *</label>
+                <Input type="number" required value={catForm.year} onChange={(e) => setCatForm({ ...catForm, year: e.target.value })} className="bg-black border-gold/20 text-white" />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm text-white/60">Vote Type</label>
+                <Select value={catForm.vote_type} onValueChange={(v) => setCatForm({ ...catForm, vote_type: v })}>
+                  <SelectTrigger className="bg-black border-gold/20 text-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-zinc-900 border-gold/20">
+                    <SelectItem value="single" className="text-white">Single Choice</SelectItem>
+                    <SelectItem value="multi" className="text-white">Multi Choice</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm text-white/60">Status</label>
+                <Select value={catForm.active ? 'true' : 'false'} onValueChange={(v) => setCatForm({ ...catForm, active: v === 'true' })}>
+                  <SelectTrigger className="bg-black border-gold/20 text-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-zinc-900 border-gold/20">
+                    <SelectItem value="true" className="text-white">Active (open for voting)</SelectItem>
+                    <SelectItem value="false" className="text-white">Inactive (closed)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm text-white/60">Description</label>
+              <Textarea value={catForm.description} onChange={(e) => setCatForm({ ...catForm, description: e.target.value })} className="bg-black border-gold/20 text-white min-h-[80px]" />
+            </div>
+            <div className="flex justify-end gap-4">
+              <Button type="button" variant="outline" onClick={() => setCatDialogOpen(false)} className="border-gold/30 text-white">Cancel</Button>
+              <Button type="submit" disabled={submitting} className="gradient-gold text-black">
+                {submitting ? <Loader2 className="animate-spin" size={18} /> : editingCat ? 'Update' : 'Create'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
+      {/* Nominee Dialog */}
+      <Dialog open={nomineeDialogOpen} onOpenChange={setNomineeDialogOpen}>
+        <DialogContent className="bg-zinc-900 border-gold/20 text-white max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="font-gilda text-2xl">
+              {editingNomineeIdx != null ? 'Edit Nominee' : 'Add Nominee'}
+            </DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmitNominee} className="space-y-6">
+            <div className="space-y-2">
+              <label className="text-sm text-white/60">Name *</label>
+              <Input required value={nomineeForm.name} onChange={(e) => setNomineeForm({ ...nomineeForm, name: e.target.value })} className="bg-black border-gold/20 text-white" />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm text-white/60">Title</label>
+                <Input value={nomineeForm.title} onChange={(e) => setNomineeForm({ ...nomineeForm, title: e.target.value })} className="bg-black border-gold/20 text-white" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm text-white/60">Company</label>
+                <Input value={nomineeForm.company} onChange={(e) => setNomineeForm({ ...nomineeForm, company: e.target.value })} className="bg-black border-gold/20 text-white" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm text-white/60">Image</label>
+              <Input type="file" accept="image/*" onChange={(e) => setNomineeImageFile(e.target.files[0])} className="bg-black border-gold/20 text-white" />
+              {editingNomineeIdx != null && nomineeParentCat?.nominees[editingNomineeIdx]?.image && !nomineeImageFile && (
+                <p className="text-white/50 text-xs">Current image kept if no new file selected</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm text-white/60">Bio</label>
+              <Textarea value={nomineeForm.bio} onChange={(e) => setNomineeForm({ ...nomineeForm, bio: e.target.value })} className="bg-black border-gold/20 text-white min-h-[80px]" />
+            </div>
+            <div className="flex justify-end gap-4">
+              <Button type="button" variant="outline" onClick={() => setNomineeDialogOpen(false)} className="border-gold/30 text-white">Cancel</Button>
+              <Button type="submit" disabled={submitting} className="gradient-gold text-black">
+                {submitting ? <Loader2 className="animate-spin" size={18} /> : editingNomineeIdx != null ? 'Update' : 'Add'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Winner Dialog */}
+      <Dialog open={winnerDialogOpen} onOpenChange={setWinnerDialogOpen}>
+        <DialogContent className="bg-zinc-900 border-gold/20 text-white max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="font-gilda text-2xl">{editingWinner ? 'Edit Winner' : 'Add New Winner'}</DialogTitle>
+          </DialogHeader>
           <form onSubmit={handleSubmitWinner} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -324,7 +645,6 @@ export default function AwardsAdmin() {
                 <Input required value={winnerForm.award_category} onChange={(e) => setWinnerForm({ ...winnerForm, award_category: e.target.value })} className="bg-black border-gold/20 text-white" placeholder="e.g., Business Excellence" />
               </div>
             </div>
-
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <label className="text-sm text-white/60">Title</label>
@@ -336,86 +656,27 @@ export default function AwardsAdmin() {
               </div>
               <div className="space-y-2">
                 <label className="text-sm text-white/60">Year *</label>
-                <Input type="number" required value={winnerForm.year} onChange={(e) => setWinnerForm({ ...winnerForm, year: parseInt(e.target.value) })} className="bg-black border-gold/20 text-white" />
+                <Input type="number" required value={winnerForm.year} onChange={(e) => setWinnerForm({ ...winnerForm, year: e.target.value })} className="bg-black border-gold/20 text-white" />
               </div>
             </div>
-
             <div className="space-y-2">
               <label className="text-sm text-white/60">Photo</label>
               <Input type="file" accept="image/*" onChange={(e) => setPhotoFile(e.target.files[0])} className="bg-black border-gold/20 text-white" />
-              {editingItem?.photo_url && !photoFile && (
+              {editingWinner?.photo_url && !photoFile && (
                 <p className="text-white/50 text-xs">Current photo kept if no new file selected</p>
               )}
             </div>
-
             <div className="space-y-2">
               <label className="text-sm text-white/60">Bio</label>
               <Textarea value={winnerForm.bio} onChange={(e) => setWinnerForm({ ...winnerForm, bio: e.target.value })} className="bg-black border-gold/20 text-white min-h-[100px]" />
             </div>
-
             <div className="flex justify-end gap-4">
-              <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} className="border-gold/30 text-white">
-                Cancel
-              </Button>
+              <Button type="button" variant="outline" onClick={() => setWinnerDialogOpen(false)} className="border-gold/30 text-white">Cancel</Button>
               <Button type="submit" disabled={submitting} className="gradient-gold text-black">
-                {submitting ? <Loader2 className="animate-spin" size={18} /> : editingItem ? 'Update' : 'Create'}
+                {submitting ? <Loader2 className="animate-spin" size={18} /> : editingWinner ? 'Update' : 'Create'}
               </Button>
             </div>
           </form>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isDialogOpen && dialogType === 'viewNomination'} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="bg-zinc-900 border-gold/20 text-white max-w-2xl">
-          <DialogHeader>
-            <DialogTitle className="font-gilda text-2xl">Nomination Details</DialogTitle>
-          </DialogHeader>
-
-          {editingItem && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-white/50 text-sm">Nominee</p>
-                  <p className="text-white font-medium">{editingItem.nominee_name}</p>
-                </div>
-                <div>
-                  <p className="text-white/50 text-sm">Category</p>
-                  <p className="text-white">{editingItem.award_category}</p>
-                </div>
-                <div>
-                  <p className="text-white/50 text-sm">Title</p>
-                  <p className="text-white">{editingItem.nominee_title || '—'}</p>
-                </div>
-                <div>
-                  <p className="text-white/50 text-sm">Company</p>
-                  <p className="text-white">{editingItem.nominee_company || '—'}</p>
-                </div>
-              </div>
-
-              <div>
-                <p className="text-white/50 text-sm mb-2">Reason for Nomination</p>
-                <p className="text-white/80 bg-black p-4 rounded border border-gold/10 whitespace-pre-wrap">
-                  {editingItem.reason || 'No reason provided'}
-                </p>
-              </div>
-
-              {editingItem.supporting_links && (
-                <div>
-                  <p className="text-white/50 text-sm mb-2">Supporting Links</p>
-                  <p className="text-white/80">{editingItem.supporting_links}</p>
-                </div>
-              )}
-
-              <div className="border-t border-gold/10 pt-4">
-                <p className="text-white/50 text-sm">Nominated by</p>
-                <p className="text-white">{editingItem.nominator_name}</p>
-                <p className="text-white/60 text-sm">{editingItem.nominator_email}</p>
-                {editingItem.nominator_phone && (
-                  <p className="text-white/60 text-sm">{editingItem.nominator_phone}</p>
-                )}
-              </div>
-            </div>
-          )}
         </DialogContent>
       </Dialog>
     </div>

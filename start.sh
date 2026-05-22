@@ -20,7 +20,7 @@ echo "  Frontend PID: $FRONTEND_PID"
 sleep 5
 if curl -s -o /dev/null -w "%{http_code}" http://localhost:5173 > /dev/null 2>&1; then
   echo "  Frontend: OK"
-  
+
 else
   echo "  Frontend: FAILED - check /tmp/jewel-vite.log"
 fi
