@@ -148,12 +148,16 @@ button:focus-visible {
 
 
 
+html {
+  background-color: #0a0a0a;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-black text-white overflow-x-hidden;
   }
 }
 
