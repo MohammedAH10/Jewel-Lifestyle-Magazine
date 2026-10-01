@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import StorySubmission from '../models/StorySubmission.js';
 import { authenticate, adminOnly } from '../middleware/auth.js';
+import { noCache } from '../middleware/cache.js';
 
 const router = Router();
 
@@ -13,7 +14,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-router.get('/', authenticate, adminOnly, async (req, res) => {
+router.get('/', noCache, authenticate, adminOnly, async (req, res) => {
   try {
     const submissions = await StorySubmission.find().sort({ createdAt: -1 });
     res.json(submissions);

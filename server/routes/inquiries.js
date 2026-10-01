@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import AdInquiry from '../models/AdInquiry.js';
 import { authenticate, adminOnly } from '../middleware/auth.js';
+import { noCache } from '../middleware/cache.js';
 
 const router = Router();
 
@@ -13,7 +14,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-router.get('/', authenticate, adminOnly, async (req, res) => {
+router.get('/', noCache, authenticate, adminOnly, async (req, res) => {
   try {
     const inquiries = await AdInquiry.find().sort({ createdAt: -1 });
     res.json(inquiries);

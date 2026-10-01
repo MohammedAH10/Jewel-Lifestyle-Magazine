@@ -1,5 +1,7 @@
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
+const DEFAULT_TIMEOUT_MS = 20000;
+
 class ApiClient {
   constructor() {
     this.baseUrl = API_BASE;
@@ -18,7 +20,7 @@ class ApiClient {
   }
 
   async request(endpoint, options = {}) {
-    const { method = 'GET', body, isFormData = false, params } = options;
+    const { method = 'GET', body, isFormData = false, params, timeout = DEFAULT_TIMEOUT_MS } = options;
     let url = `${this.baseUrl}${endpoint}`;
     if (params) {
       const searchParams = new URLSearchParams();
@@ -45,14 +47,49 @@ class ApiClient {
       config.body = isFormData ? body : JSON.stringify(body);
     }
 
-    const response = await fetch(url, config);
-    const data = await response.json();
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeout);
+    config.signal = controller.signal;
+
+    let response;
+    try {
+      response = await fetch(url, config);
+    } catch (err) {
+      if (err.name === 'AbortError') {
+        throw new Error('The server took too long to respond. Please try again.');
+      }
+      throw new Error('Unable to reach the server. Check your connection and try again.');
+    } finally {
+      clearTimeout(timer);
+    }
+
+    const contentType = response.headers.get('content-type') || '';
+    const data = contentType.includes('application/json')
+      ? await response.json().catch(() => null)
+      : null;
 
     if (!response.ok) {
-      throw new Error(data.error || `Request failed with status ${response.status}`);
+      throw new Error(data?.error || `Request failed with status ${response.status}`);
+    }
+
+    if (data === null && contentType.includes('application/json')) {
+      throw new Error('The server returned an unreadable response.');
     }
 
     return data;
+  }
+
+  /**
+   * Resolves with `{ data, error }` instead of throwing, so one failing
+   * endpoint cannot blank out unrelated sections of a page.
+   */
+  async safeGet(endpoint, params) {
+    try {
+      const data = await this.get(endpoint, params);
+      return { data, error: null };
+    } catch (err) {
+      return { data: null, error: err.message };
+    }
   }
 
   get(endpoint, params) {
@@ -60,21 +97,22 @@ class ApiClient {
   }
 
   post(endpoint, body, isFormData = false) {
-    return this.request(endpoint, { method: 'POST', body, isFormData });
+    return this.request(endpoint, { method: 'POST', body, isFormData, timeout: 60000 });
   }
 
   put(endpoint, body, isFormData = false) {
-    return this.request(endpoint, { method: 'PUT', body, isFormData });
+    return this.request(endpoint, { method: 'PUT', body, isFormData, timeout: 60000 });
   }
 
   delete(endpoint) {
     return this.request(endpoint, { method: 'DELETE' });
   }
 
-  upload(file) {
+  upload(file, folder) {
     const formData = new FormData();
     formData.append('file', file);
-    return this.post('/upload', formData, true);
+    const query = folder ? `?folder=${encodeURIComponent(folder)}` : '';
+    return this.post(`/upload${query}`, formData, true);
   }
 
   login(email, password) {
@@ -89,10 +127,8 @@ class ApiClient {
     return this.get('/auth/me');
   }
 
-  async uploadFile(file) {
-    const formData = new FormData();
-    formData.append('file', file);
-    const result = await this.post('/upload', formData, true);
+  async uploadFile(file, folder) {
+    const result = await this.upload(file, folder);
     return { file_url: result.file_url };
   }
 }
