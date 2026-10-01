@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
+import imagekit from './config/imagekit.js';
 
 dotenv.config();
 
@@ -15,15 +16,18 @@ async function uploadImage(filePath) {
   const filename = path.basename(filePath);
   try {
     const buffer = fs.readFileSync(filePath);
-    const ext = path.extname(filename).toLowerCase();
-    const mimeMap = { '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp' };
-    const mime = mimeMap[ext] || 'image/jpeg';
-    const base64 = buffer.toString('base64');
-    const dataUrl = `data:${mime};base64,${base64}`;
     console.log(`  Loaded ${filename} (${(buffer.length / 1024).toFixed(1)}KB)`);
-    return dataUrl;
+
+    if (!imagekit.isConfigured()) {
+      console.warn('  ImageKit not configured — skipping upload for', filename);
+      return null;
+    }
+
+    const url = await imagekit.uploadBuffer(buffer, { fileName: filename, folder: 'seed' });
+    console.log(`  Uploaded ${filename} -> ${url}`);
+    return url;
   } catch (err) {
-    console.error(`  Failed to read ${filename}:`, err.message);
+    console.error(`  Failed to upload ${filename}:`, err.message);
     return null;
   }
 }

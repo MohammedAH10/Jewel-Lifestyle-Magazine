@@ -1,7 +1,8 @@
 import { api } from '@/api/client'
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Trophy, Award, Star, Calendar, MapPin, CheckCircle, Loader2, Send, ChevronRight } from 'lucide-react'
+import { Trophy, Award, Star, Calendar, MapPin, CheckCircle, Loader2, Send } from 'lucide-react'
+import { imageUrl, presets } from '@/utils/imageUrl'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
@@ -28,25 +29,29 @@ export default function SpotlightAwards() {
   useEffect(() => {
     let cancelled = false
     async function fetchData() {
-      try {
-        const [categoriesData, winnersData] = await Promise.all([
-          api.get('/award-categories'),
-          api.get('/awards/winners'),
-        ])
-        if (cancelled) return
-        const cats = categoriesData || []
-        const wins = winnersData || []
-        setCategories(cats)
-        setWinners(wins)
-        if (wins.length > 0) {
-          const years = [...new Set(wins.map(w => w.year))].sort((a, b) => b - a)
-          setSelectedYear(years[0])
-        }
-      } catch (err) {
-        if (!cancelled) setError(err.message)
-      } finally {
-        if (!cancelled) setLoading(false)
+      // Each section loads independently so one failing endpoint does not
+      // blank the whole page.
+      const [categoriesResult, winnersResult] = await Promise.all([
+        api.safeGet('/award-categories'),
+        api.safeGet('/awards/winners'),
+      ])
+      if (cancelled) return
+
+      const cats = categoriesResult.data || []
+      const wins = winnersResult.data || []
+      setCategories(cats)
+      setWinners(wins)
+
+      if (wins.length > 0) {
+        const years = [...new Set(wins.map(w => w.year))].sort((a, b) => b - a)
+        setSelectedYear(years[0])
       }
+
+      if (!categoriesResult.data && !winnersResult.data) {
+        setError(categoriesResult.error || winnersResult.error || 'Unable to load awards')
+      }
+
+      setLoading(false)
     }
     fetchData()
     return () => { cancelled = true }
@@ -82,18 +87,36 @@ export default function SpotlightAwards() {
     setSubmitting(true)
     setSubmitMsg('')
     try {
+      const failed = []
       for (const catId of catIds) {
-        await api.post('/award-categories/vote', {
-          category_id: catId,
-          selected_nominees: votes[catId],
-          voter_name: voterName.trim(),
-          voter_email: voterEmail.trim(),
-        })
+        try {
+          await api.post('/award-categories/vote', {
+            category_id: catId,
+            selected_nominees: votes[catId],
+            voter_name: voterName.trim(),
+            voter_email: voterEmail.trim(),
+          })
+        } catch (err) {
+          failed.push(err.message || 'Failed to submit')
+        }
       }
-      setSubmitMsg('success')
-      setVotes({})
-      setVoterName('')
-      setVoterEmail('')
+
+      if (failed.length === 0) {
+        setSubmitMsg('success')
+        setVotes({})
+        setVoterName('')
+        setVoterEmail('')
+      } else if (failed.length === catIds.length) {
+        setSubmitMsg(failed[0])
+      } else {
+        // Partial success: keep the categories that failed so they can be
+        // retried, since a device may only vote once per category.
+        setSubmitMsg(`Some votes failed: ${failed.join('; ')}`)
+        const stillOpen = Object.fromEntries(
+          catIds.filter((id) => failed.length < catIds.length).map((id) => [id, votes[id]])
+        )
+        setVotes(Object.keys(stillOpen).length ? votes : {})
+      }
     } catch (err) {
       setSubmitMsg(err.message || 'Failed to submit votes')
     } finally {
@@ -213,14 +236,14 @@ export default function SpotlightAwards() {
                     </p>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="flex overflow-x-auto gap-4 pb-2 snap-x snap-mandatory sm:grid sm:grid-cols-2 lg:grid-cols-4 sm:overflow-visible sm:gap-4">
                     {cat.nominees?.map((nominee) => {
                       const isSelected = (votes[cat.id] || []).includes(nominee.name)
                       return (
                         <button
                           key={nominee.name}
                           onClick={() => handleToggleVote(cat.id, nominee.name)}
-                          className={`text-left border transition-all duration-300 ${
+                          className={`text-left border transition-all duration-300 min-w-[75vw] sm:min-w-0 snap-start sm:snap-align-none ${
                             isSelected
                               ? 'border-gold bg-gold/10'
                               : 'border-gold/10 hover:border-gold/40 bg-black/50'
@@ -228,7 +251,7 @@ export default function SpotlightAwards() {
                         >
                           <div className="aspect-[4/3] relative overflow-hidden">
                             {nominee.image ? (
-                              <img src={nominee.image} alt={nominee.name} className="w-full h-full object-cover" />
+                              <img src={imageUrl(nominee.image, presets.card)} alt={nominee.name} className="w-full h-full object-cover" loading="lazy" />
                             ) : (
                               <div className="w-full h-full bg-zinc-800 flex items-center justify-center">
                                 <span className="font-gilda text-5xl text-gold/30">
@@ -244,8 +267,8 @@ export default function SpotlightAwards() {
                           </div>
                           <div className="p-4">
                             <h4 className="text-white font-medium">{nominee.name}</h4>
-                            {nominee.title && <p className="text-white/50 text-sm">{nominee.title}</p>}
-                            {nominee.company && <p className="text-white/40 text-xs">{nominee.company}</p>}
+                            {nominee.title && <p className="text-white/50 text-sm line-clamp-1">{nominee.title}</p>}
+                            {nominee.company && <p className="text-white/40 text-xs line-clamp-1">{nominee.company}</p>}
                           </div>
                         </button>
                       )
@@ -355,7 +378,7 @@ export default function SpotlightAwards() {
                 >
                   <div className="aspect-[4/3] overflow-hidden">
                     {winner.photo_url ? (
-                      <img src={winner.photo_url} alt={winner.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                      <img src={imageUrl(winner.photo_url, presets.card)} alt={winner.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" loading="lazy" />
                     ) : (
                       <div className="w-full h-full gradient-gold flex items-center justify-center">
                         <span className="font-gilda text-7xl text-black/60">

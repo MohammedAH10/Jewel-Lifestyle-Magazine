@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { Download, ExternalLink, Calendar, ChevronRight, BookOpen, Loader2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { createPageUrl } from '@/utils'
+import { imageUrl, presets } from '@/utils/imageUrl'
 import { api } from '@/api/client'
 
 const MONTH_ORDER = {
@@ -174,9 +175,10 @@ export default function DigitalMagazine() {
                 <div className="aspect-[4/5] relative overflow-hidden border border-gold/20">
                   {currentIssue.cover_image_url ? (
                     <img
-                      src={currentIssue.cover_image_url}
+                      src={imageUrl(currentIssue.cover_image_url, presets.card)}
                       alt={currentIssue.title}
                       className="w-full h-full object-cover"
+                      loading="lazy"
                     />
                   ) : (
                     <div className="w-full h-full bg-zinc-800 flex items-center justify-center">
@@ -289,9 +291,10 @@ export default function DigitalMagazine() {
                       <div className="aspect-[3/4] relative overflow-hidden">
                         {issue.cover_image_url ? (
                           <img
-                            src={issue.cover_image_url}
+                            src={imageUrl(issue.cover_image_url, presets.card)}
                             alt={issue.title}
                             className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                            loading="lazy"
                           />
                         ) : (
                           <div className="w-full h-full bg-zinc-800 flex items-center justify-center">

@@ -1,22 +1,75 @@
 import mongoose from 'mongoose';
 
-mongoose.plugin(function(schema) {
+mongoose.plugin(function (schema) {
   schema.set('toJSON', { virtuals: true });
 });
 
-const connectDB = async () => {
-  if (mongoose.connection.readyState === 1) return;
-  const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/jewel-magazine';
+const MAX_POOL_SIZE = 5;
+const SERVER_SELECTION_TIMEOUT_MS = 10000;
+const CONNECT_TIMEOUT_MS = 15000;
+const CONNECT_ATTEMPTS = 3;
+const RETRY_BASE_MS = 500;
+
+let connectPromise = null;
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+const attemptConnect = async (uri, attempt = 1) => {
   try {
-    await mongoose.connect(uri, {
-      serverSelectionTimeoutMS: 15000,
-      socketTimeoutMS: 45000,
+    return await mongoose.connect(uri, {
+      serverSelectionTimeoutMS: SERVER_SELECTION_TIMEOUT_MS,
+      connectTimeoutMS: CONNECT_TIMEOUT_MS,
+      socketTimeoutMS: 20000,
+      maxPoolSize: MAX_POOL_SIZE,
+      minPoolSize: 0,
+      maxIdleTimeMS: 15000,
+      retryWrites: true,
     });
-    console.log('MongoDB connected');
   } catch (err) {
-    console.error('MongoDB connection error:', err.message);
-    throw err;
+    if (attempt >= CONNECT_ATTEMPTS) throw err;
+    const wait = RETRY_BASE_MS * 2 ** (attempt - 1);
+    console.warn(
+      `MongoDB connect attempt ${attempt}/${CONNECT_ATTEMPTS} failed (${err.message}); retrying in ${wait}ms`
+    );
+    await sleep(wait);
+    return attemptConnect(uri, attempt + 1);
   }
 };
+
+/**
+ * Resolves with an open connection, reusing the in-flight attempt when one is
+ * already running. A cold Atlas cluster (M0 pauses when idle) often needs a
+ * retry, and Vercel reuses the module across invocations while Mongo reaps
+ * idle sockets, so the connection is always re-checked rather than cached in
+ * a boolean flag.
+ */
+const connectDB = async () => {
+  if (mongoose.connection.readyState === 1) return mongoose.connection;
+
+  if (connectPromise) return connectPromise;
+
+  const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/jewel-magazine';
+
+  connectPromise = attemptConnect(uri)
+    .then((m) => {
+      connectPromise = null;
+      return m.connection;
+    })
+    .catch((err) => {
+      connectPromise = null;
+      throw err;
+    });
+
+  return connectPromise;
+};
+
+mongoose.connection.on('disconnected', () => {
+  connectPromise = null;
+});
+
+mongoose.connection.on('error', (err) => {
+  console.error('MongoDB connection error:', err.message);
+  connectPromise = null;
+});
 
 export default connectDB;

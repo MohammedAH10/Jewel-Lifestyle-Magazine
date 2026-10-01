@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { ArrowLeft, Calendar, User, Building, Play, Share2, Twitter, Linkedin, Facebook, Copy, Check } from 'lucide-react'
 import { api } from '@/api/client'
 import { createPageUrl } from '@/utils'
+import { imageUrl, presets } from '@/utils/imageUrl'
 import { Button } from '@/components/ui/button'
 
 function isHTML(str) {
@@ -135,9 +136,10 @@ export default function InterviewDetail() {
       {/* Hero Section */}
       <div className="relative w-full h-[50vh] sm:h-[60vh] lg:h-[70vh] mt-4 overflow-hidden">
         <img
-          src={interview.cover_image_url || interview.headshot_url}
+          src={imageUrl(interview.cover_image_url || interview.headshot_url, presets.hero)}
           alt={interview.name}
           className="w-full h-full object-cover"
+          fetchPriority="high"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
         <div className="absolute inset-0 bg-gradient-to-r from-black/40 to-transparent" />

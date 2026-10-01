@@ -2,12 +2,13 @@ import { Router } from 'express';
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import { authenticate } from '../middleware/auth.js';
+import { noCache } from '../middleware/cache.js';
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'jewel-magazine-secret-key-2024';
 const MAX_ADMINS = 5;
 
-router.post('/register', async (req, res) => {
+router.post('/register', noCache, async (req, res) => {
   try {
     const { email, password, name } = req.body;
     if (!email || !password || !name) {
@@ -29,7 +30,7 @@ router.post('/register', async (req, res) => {
   }
 });
 
-router.post('/login', async (req, res) => {
+router.post('/login', noCache, async (req, res) => {
   try {
     const { email, password } = req.body;
     if (!email || !password) {
@@ -46,7 +47,7 @@ router.post('/login', async (req, res) => {
   }
 });
 
-router.get('/me', authenticate, async (req, res) => {
+router.get('/me', noCache, authenticate, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('-password');
     if (!user) return res.status(404).json({ error: 'User not found' });

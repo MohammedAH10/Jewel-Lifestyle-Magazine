@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { authenticate, adminOnly } from '../middleware/auth.js';
+import imagekit from '../config/imagekit.js';
 
 const router = Router();
 
@@ -20,11 +21,14 @@ const upload = multer({
 router.post('/', authenticate, adminOnly, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-    const base64 = req.file.buffer.toString('base64');
-    const dataUrl = `data:${req.file.mimetype};base64,${base64}`;
-    res.json({ file_url: dataUrl });
+    const folder = req.query.folder ? String(req.query.folder) : 'uploads';
+    const file_url = await imagekit.uploadBuffer(req.file.buffer, {
+      fileName: req.file.originalname,
+      folder,
+    });
+    res.json({ file_url });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(err.statusCode || 500).json({ error: err.message });
   }
 });
 

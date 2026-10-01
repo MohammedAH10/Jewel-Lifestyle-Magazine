@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
+import { imageUrl, presets } from "@/utils/imageUrl";
 
 export default function CoverStoriesCarousel({ interviews }) {
   const scrollRef = useRef(null);
@@ -70,8 +71,9 @@ export default function CoverStoriesCarousel({ interviews }) {
                 {/* Image */}
                 <div className="relative aspect-[3/4] overflow-hidden bg-zinc-900">
                   <img
-                    src={interview.cover_image_url || interview.headshot_url}
+                    src={imageUrl(interview.cover_image_url || interview.headshot_url, presets.card)}
                     alt={interview.name}
+                    loading="lazy"
                     className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />

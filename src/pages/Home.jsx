@@ -17,25 +17,21 @@ export default function Home() {
     let cancelled = false;
 
     async function fetchData() {
-      try {
-        const [slidesData, interviewsData] = await Promise.all([
-          api.get("/heroes"),
-          api.get("/executives", { cover: "true" }),
-        ]);
+      const [slidesResult, interviewsResult] = await Promise.all([
+        api.safeGet("/heroes"),
+        api.safeGet("/executives", { cover: "true" }),
+      ]);
 
-        if (cancelled) return;
+      if (cancelled) return;
 
-        setSlides(slidesData || []);
-        setInterviews(interviewsData || []);
-      } catch (err) {
-        if (!cancelled) {
-          setError(err.message);
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
+      setSlides(slidesResult.data || []);
+      setInterviews(interviewsResult.data || []);
+
+      if (!slidesResult.data && !interviewsResult.data) {
+        setError(slidesResult.error || interviewsResult.error || "Unable to load content");
       }
+
+      setLoading(false);
     }
 
     fetchData();

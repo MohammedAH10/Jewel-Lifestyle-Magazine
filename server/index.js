@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { noCache } from './middleware/cache.js';
 import connectDB from './config/db.js';
 import authRoutes from './routes/auth.js';
 import executiveRoutes from './routes/executives.js';
@@ -42,8 +43,14 @@ app.use('/api/inquiries', inquiryRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/award-categories', awardCategoryRoutes);
 
-app.get('/api/health', (req, res) => {
+app.get('/api/health', noCache, (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err.message);
+  if (res.headersSent) return next(err);
+  res.status(err.statusCode || 500).json({ error: err.message || 'Internal server error' });
 });
 
 const start = async () => {
