@@ -31,6 +31,7 @@ const run = async () => {
     { name: 'ExecutiveInterview', keys: ['headshot_url', 'cover_image_url'] },
     { name: 'TeamMember', key: 'photo_url' },
     { name: 'AwardWinner', key: 'photo_url' },
+    { name: 'AwardCategory' },
   ];
 
   for (const m of models) {
