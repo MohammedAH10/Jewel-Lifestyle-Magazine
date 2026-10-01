@@ -2,6 +2,7 @@ import { api } from '@/api/client'
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Trophy, Award, Star, Calendar, MapPin, CheckCircle, Loader2, Send } from 'lucide-react'
+import { imageUrl, presets } from '@/utils/imageUrl'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
@@ -250,7 +251,7 @@ export default function SpotlightAwards() {
                         >
                           <div className="aspect-[4/3] relative overflow-hidden">
                             {nominee.image ? (
-                              <img src={nominee.image} alt={nominee.name} className="w-full h-full object-cover" loading="lazy" />
+                              <img src={imageUrl(nominee.image, presets.card)} alt={nominee.name} className="w-full h-full object-cover" loading="lazy" />
                             ) : (
                               <div className="w-full h-full bg-zinc-800 flex items-center justify-center">
                                 <span className="font-gilda text-5xl text-gold/30">
@@ -377,7 +378,7 @@ export default function SpotlightAwards() {
                 >
                   <div className="aspect-[4/3] overflow-hidden">
                     {winner.photo_url ? (
-                      <img src={winner.photo_url} alt={winner.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                      <img src={imageUrl(winner.photo_url, presets.card)} alt={winner.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" loading="lazy" />
                     ) : (
                       <div className="w-full h-full gradient-gold flex items-center justify-center">
                         <span className="font-gilda text-7xl text-black/60">

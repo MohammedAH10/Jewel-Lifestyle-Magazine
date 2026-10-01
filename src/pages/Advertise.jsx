@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { Megaphone, Users, Target, BarChart3, Mail, Phone, Globe, ChevronRight, Loader2, CheckCircle } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { createPageUrl } from '@/utils'
+import { imageUrl, presets } from '@/utils/imageUrl'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
@@ -333,9 +334,10 @@ export default function Advertise() {
                 >
                   {member.photo ? (
                     <img
-                      src={member.photo}
+                      src={imageUrl(member.photo, presets.avatar)}
                       alt={member.name}
                       className="w-20 h-20 rounded-full object-cover mx-auto mb-4 ring-2 ring-gold/20"
+                      loading="lazy"
                     />
                   ) : (
                     <div className="w-20 h-20 rounded-full bg-gold/10 mx-auto mb-4 flex items-center justify-center ring-2 ring-gold/20">

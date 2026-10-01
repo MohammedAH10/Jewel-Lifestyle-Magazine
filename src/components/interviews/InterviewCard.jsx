@@ -2,6 +2,7 @@ import React from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
+import { imageUrl, presets } from "@/utils/imageUrl";
 import { ArrowRight, Play } from "lucide-react";
 
 export default function InterviewCard({ interview, index }) {
@@ -18,8 +19,9 @@ export default function InterviewCard({ interview, index }) {
         {/* Image */}
         <div className="relative aspect-[4/5] overflow-hidden">
           <img
-            src={interview.cover_image_url || interview.headshot_url}
+            src={imageUrl(interview.cover_image_url || interview.headshot_url, presets.card)}
             alt={interview.name}
+            loading="lazy"
             className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent" />
