@@ -24,7 +24,10 @@ const uploadBuffer = async (buffer, { fileName, folder } = {}) => {
   requireConfig();
 
   const body = new FormData();
+  // The filename must be set on the Blob itself; a bare Blob has no name, so
+  // ImageKit rejects the request with "missing fileName paramater".
   body.append('file', new Blob([buffer]), fileName || `upload-${Date.now()}.jpg`);
+  body.append('fileName', fileName || `upload-${Date.now()}.jpg`);
   body.append('useUniqueFileName', 'true');
   if (folder) body.append('folder', folder);
 
