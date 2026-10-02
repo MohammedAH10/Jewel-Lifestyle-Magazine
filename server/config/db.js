@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { resolveMongoUri } from './mongoUri.js';
 
 mongoose.plugin(function (schema) {
   schema.set('toJSON', { virtuals: true });
@@ -14,9 +15,12 @@ let connectPromise = null;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-const attemptConnect = async (uri, attempt = 1) => {
+const attemptConnect = async (uri, dbName, attempt = 1) => {
   try {
     return await mongoose.connect(uri, {
+      // Passed explicitly so the target database can never depend on the URI
+      // happening to contain a path.
+      dbName,
       serverSelectionTimeoutMS: SERVER_SELECTION_TIMEOUT_MS,
       connectTimeoutMS: CONNECT_TIMEOUT_MS,
       socketTimeoutMS: 20000,
@@ -48,9 +52,11 @@ const connectDB = async () => {
 
   if (connectPromise) return connectPromise;
 
-  const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/jewel-magazine';
+  // Throws if the URI does not name a database, rather than defaulting to
+  // the `test` database and writing production traffic there.
+  const { uri, dbName } = resolveMongoUri();
 
-  connectPromise = attemptConnect(uri)
+  connectPromise = attemptConnect(uri, dbName)
     .then((m) => {
       connectPromise = null;
       return m.connection;

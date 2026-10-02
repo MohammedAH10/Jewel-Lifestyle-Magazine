@@ -4,12 +4,13 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import imagekit from './config/imagekit.js';
+import { resolveMongoUri } from './config/mongoUri.js';
 
 dotenv.config();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/jewel-magazine';
+const { uri: MONGODB_URI, dbName: MONGODB_DB } = resolveMongoUri();
 const IMAGES_DIR = path.resolve(__dirname, '..', 'images');
 
 async function uploadImage(filePath) {
@@ -41,7 +42,7 @@ function imgOrPlaceholder(urls, name, placeholder) {
 
 async function seed() {
   console.log('Connecting to MongoDB...');
-  await mongoose.connect(MONGODB_URI);
+  await mongoose.connect(MONGODB_URI, { dbName: MONGODB_DB });
   console.log('Connected to MongoDB\n');
 
   const imageFiles = fs.readdirSync(IMAGES_DIR).filter(f => /\.(jpg|jpeg|png|webp)$/i.test(f));

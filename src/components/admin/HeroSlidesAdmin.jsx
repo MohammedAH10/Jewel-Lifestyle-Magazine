@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { api } from '@/api/client'
+import useAutoRefresh from '@/hooks/useAutoRefresh'
 import { Plus, Edit2, Trash2, Loader2, Image } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -30,21 +31,24 @@ export default function HeroSlidesAdmin() {
   const [form, setForm] = useState(defaultForm)
   const [file, setFile] = useState(null)
 
-  const fetchSlides = async () => {
+  const fetchSlides = async ({ silent } = {}) => {
     try {
-      setLoading(true)
+      if (!silent) setLoading(true)
       const data = await api.get('/heroes/all')
       setSlides(data)
     } catch (err) {
       console.error('Failed to load slides', err)
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }
 
   useEffect(() => {
     fetchSlides()
   }, [])
+
+  // Keep this panel current without a manual refresh.
+  useAutoRefresh(fetchSlides)
 
   const resetForm = () => {
     setForm(defaultForm)

@@ -575,7 +575,7 @@ Public unless marked 🔒 admin-only or 🔑 authenticated.
 
 | Variable | Required | Purpose |
 |---|---|---|
-| `MONGODB_URI` | yes | MongoDB Atlas connection string |
+| `MONGODB_URI` | yes | MongoDB Atlas connection string, **including the database name** |
 | `JWT_SECRET` | yes | Signs and verifies auth tokens |
 | `IMAGEKIT_PUBLIC_KEY` | for uploads | ImageKit public key |
 | `IMAGEKIT_PRIVATE_KEY` | for uploads | ImageKit private key, **server-side only** |
@@ -586,6 +586,26 @@ Public unless marked 🔒 admin-only or 🔑 authenticated.
 Copy `.env.example` to `.env` and fill it in. Add the same variables to the
 Vercel project's environment settings — a local `.env` is invisible to Vercel.
 Never commit `.env`.
+
+**The database name must be in the URI.** This is the single most dangerous
+setting in the project, because getting it wrong fails silently rather than
+loudly:
+
+```
+mongodb+srv://user:pass@cluster.mongodb.net/jewel-magazine?retryWrites=true&w=majority
+```
+
+A URI with no path — `...mongodb.net` or `...mongodb.net/` — is accepted by
+MongoDB, but the database then defaults to `test`. Reads still succeed, so the
+site looks healthy, while every write (votes, categories, subscribers) lands
+in a `test` database and the real data never changes. Atlas makes this easy to
+miss because the cluster name is shown in the sidebar while the database is a
+level below it.
+
+`server/config/mongoUri.js` now parses every connection string and refuses to
+start if no database name is present, so this cannot recur silently. All
+scripts (`seed-awards.js`, `migrate-images.mjs`, `server/seed.js`,
+`server/create-admin.js`) use the same helper.
 
 ---
 

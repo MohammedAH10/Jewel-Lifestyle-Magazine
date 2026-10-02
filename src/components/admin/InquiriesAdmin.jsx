@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { api } from '@/api/client'
+import useAutoRefresh from '@/hooks/useAutoRefresh'
 import { motion } from 'framer-motion'
 import { Loader2, Mail, Phone, Building, DollarSign, MessageSquare, Trash2, Eye } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -22,21 +23,24 @@ export default function InquiriesAdmin() {
   const [selected, setSelected] = useState(null)
   const [dialogOpen, setDialogOpen] = useState(false)
 
-  const fetchInquiries = async () => {
+  const fetchInquiries = async ({ silent } = {}) => {
     try {
-      setLoading(true)
+      if (!silent) setLoading(true)
       const data = await api.get('/inquiries')
       setInquiries(data)
     } catch (err) {
       console.error('Failed to load inquiries', err)
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }
 
   useEffect(() => {
     fetchInquiries()
   }, [])
+
+  // Keep this panel current without a manual refresh.
+  useAutoRefresh(fetchInquiries)
 
   const handleStatusChange = async (id, status) => {
     await api.put(`/inquiries/${id}`, { status })

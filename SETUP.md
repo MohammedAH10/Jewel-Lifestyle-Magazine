@@ -389,6 +389,8 @@ Any change to environment variables requires a redeploy to take effect.
 |---|---|---|
 | Every section shows "Please refresh the page" | API failing wholesale | Check `/api/health`; inspect Vercel function logs |
 | `503 Database unavailable` | `MONGODB_URI` missing or unreachable | Verify the variable exists; confirm the Atlas IP access list allows `0.0.0.0/0` |
+| Boot error: "does not name a database" | `MONGODB_URI` has no database path | Add it: `...mongodb.net/jewel-magazine?...`. Without it MongoDB silently uses a database called `test` and every write lands there. The API now refuses to start rather than do this |
+| New votes or admin edits are not in `jewel-magazine` | Wrong database in the env var | Confirm the URI ends in `/jewel-magazine`. Atlas shows the database under the cluster, so check the database name, not just the cluster |
 | Pages load locally, 503 in production | Env vars not set on Vercel | Add all six variables, redeploy |
 | "ImageKit is not configured" on upload | An `IMAGEKIT_*` value is blank | Re-copy from ImageKit → Developer Options; check for trailing spaces |
 | `"Your request is missing fileName paramater"` | `fileName` not sent to ImageKit | Must be set on both the `Blob` and as a form field |
