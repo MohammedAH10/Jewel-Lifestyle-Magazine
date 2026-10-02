@@ -232,7 +232,50 @@ The script is safe to re-run but will duplicate content rows.
 
 ---
 
-## 7. Migrate existing images to ImageKit
+## 7. Seed the Spotlight Awards categories
+
+`npm run seed:awards`
+
+Each sub-folder of `JewelSpotlightAwardsNominees/` is one award category and
+each image in it is one nominee. Images upload to ImageKit under
+`spotlight-awards/` and only the URL is stored.
+
+```bash
+JewelSpotlightAwardsNominees/
+  Beauty and Makeup Brand of the Year/
+    photo1.jpg
+    photo2.jpg
+  MSME of the Year Awards/
+    ...
+```
+
+What to expect:
+
+- **Nominees get numbered placeholder names** like `MSME of 1`. The filenames
+  carry no information about who or what they depict, and the schema requires
+  a name. Replace each one in **Admin → Awards**, where you can also set the
+  title and company.
+- **Four categories are multi-select** (brand of the year, both fashion brand
+  categories, food and beverage). Change `vote_type` in the admin panel if a
+  category should be single choice.
+- **Re-running is safe.** Categories are matched by name and existing nominee
+  labels are skipped, so adding images to a folder and re-running adds only the
+  new ones.
+- **The folder is not committed** (see `.gitignore`); keep your own copy of the
+  source images.
+
+Set the year explicitly if it is not the current one:
+
+```bash
+AWARDS_YEAR=2026 npm run seed:awards
+```
+
+Categories whose folder is empty are still created, with no nominees. Add
+those nominees in the admin panel or drop images into the folder and re-run.
+
+---
+
+## 8. Migrate existing images to ImageKit
 
 If the database already holds `data:` URLs or Cloudinary links, convert them:
 
@@ -261,7 +304,7 @@ Details worth knowing:
 
 ---
 
-## 8. Build and verify
+## 9. Build and verify
 
 ```bash
 npm run build     # output to dist/
@@ -286,7 +329,7 @@ curl -i http://localhost:4173/api/health
 
 ---
 
-## 9. Deploy to Vercel
+## 10. Deploy to Vercel
 
 ### Steps
 
@@ -340,7 +383,7 @@ Any change to environment variables requires a redeploy to take effect.
 
 ---
 
-## 10. Troubleshooting
+## 11. Troubleshooting
 
 | Symptom | Cause | Fix |
 |---|---|---|
@@ -352,7 +395,9 @@ Any change to environment variables requires a redeploy to take effect.
 | `"MongooseServerSelectionError: Server selection timed out"` | Atlas unreachable | IP access list, or a cold cluster still starting |
 | `EAI_AGAIN` / timeouts from local scripts | Intermittent network or IPv6 loss | Retry; the upload and DB code already retry with backoff |
 | `Vote rejected: already voted` | That device voted in that category | Expected. Votes are one per device per category |
-| `Vote rejected` for everyone in a category | Shared carrier NAT | See the CGNAT note in README section 8 |
+| Admin shows a pending vote count | Votes queued, not yet written | Normal. It drains on the next vote, tally or export |
+| Export shows 0 votes | Queue never drained | Open the Votes tab first, or re-export |
+| `Vote rejected` for everyone in a category | Shared carrier NAT | See the CGNAT note in README section 9 |
 | "MongoDB document is too large" | Base64 image still in a document | Run `npm run migrate:images` |
 | Images not shrinking after migration | URLs are not `ik.imagekit.io` | Check the stored value; non-ImageKit URLs are left untouched by `imageUrl` |
 | `npm run lint` shows errors | Pre-existing unused imports | Not a build gate; fix separately if wanted |
@@ -367,7 +412,7 @@ is the only true reset, and it destroys the vote records.
 
 ---
 
-## 11. Routine tasks
+## 12. Routine tasks
 
 **Add an award category:** Admin → Awards → create a category, set
 `vote_type` to `single` or `multi`, add nominees, toggle `active`. Inactive
@@ -388,7 +433,7 @@ unset, so set `VOTE_IP_SALT` first.
 
 ---
 
-## 12. Command reference
+## 13. Command reference
 
 | Command | Purpose |
 |---|---|
@@ -399,4 +444,5 @@ unset, so set `VOTE_IP_SALT` first.
 | `npm run preview` | Serve the production build |
 | `npm run lint` | ESLint across the repo |
 | `npm run migrate:images` | Convert stored images to ImageKit |
+| `npm run seed:awards` | Create award categories from the nominee folders |
 | `node server/seed.js` | Seed demo content |
