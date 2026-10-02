@@ -153,6 +153,9 @@ ${sheets.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.open
  * @returns {Buffer} a ZIP containing .xlsx and .csv
  */
 export function buildVoteExport({ votes = [], categories = [], pending = 0 } = {}) {
+  // Looked up once rather than per row: a large vote history would otherwise
+  // make find() inside the map quadratic.
+  const catById = new Map(categories.map((c) => [String(c._id), c]));
   const catName = new Map(categories.map((c) => [String(c._id), c.name]));
   const voteType = new Map(categories.map((c) => [String(c._id), c.vote_type]));
 
@@ -160,7 +163,7 @@ export function buildVoteExport({ votes = [], categories = [], pending = 0 } = {
     ['Category', 'Year', 'Vote type', 'Nominees voted for', 'Nominee count', 'Voter name', 'Voter email', 'Submitted at (UTC)', 'Queued at (UTC)'],
     ...votes.map((v) => [
       catName.get(String(v.category_id)) || '(deleted category)',
-      categories.find((c) => String(c._id) === String(v.category_id))?.year ?? '',
+      catById.get(String(v.category_id))?.year ?? '',
       voteType.get(String(v.category_id)) || '',
       (v.selected_nominees || []).join(' | '),
       (v.selected_nominees || []).length,
@@ -176,7 +179,7 @@ export function buildVoteExport({ votes = [], categories = [], pending = 0 } = {
   for (const v of votes) {
     const key = String(v.category_id);
     if (!tally.has(key)) {
-      const cat = categories.find((c) => String(c._id) === key);
+      const cat = catById.get(key);
       tally.set(key, {
         name: catName.get(key) || '(deleted category)',
         year: cat?.year ?? '',
