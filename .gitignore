@@ -1,6 +1,7 @@
 #env
 .env
 .env.*
+!.env.example
 
 # Logs
 logs
@@ -27,4 +28,11 @@ dist-ssr
 *.sln
 *.sw?
 
-.env
+# Source image folders (uploaded to ImageKit by the seed scripts)
+JewelSpotlightAwardsNominees/
+testimagekit/
+images/
+
+# Local end-to-end test scripts
+queue-e2e.mjs
+export-e2e.mjs
