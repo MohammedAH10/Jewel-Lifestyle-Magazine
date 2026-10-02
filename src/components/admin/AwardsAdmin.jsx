@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { api } from '@/api/client'
-import { Plus, Edit2, Trash2, Loader2, Trophy, Users, List, ChevronDown, ChevronUp } from 'lucide-react'
+import { Plus, Edit2, Trash2, Loader2, Trophy, Users, List, ChevronDown, ChevronUp, Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -58,6 +58,8 @@ export default function AwardsAdmin() {
 
   const [expandedCat, setExpandedCat] = useState(null)
   const [selectedVoteCat, setSelectedVoteCat] = useState(null)
+  const [queuedCount, setQueuedCount] = useState(0)
+  const [exporting, setExporting] = useState(false)
 
   const fetchCategories = async () => {
     try {
@@ -78,12 +80,33 @@ export default function AwardsAdmin() {
   }
 
   const fetchVotes = async (categoryId) => {
-    if (!categoryId) { setVotes([]); return }
+    if (!categoryId) { setVotes([]); setQueuedCount(0); return }
     try {
+      // The endpoint returns { votes, queued }; older shapes returned a bare array.
       const res = await api.get(`/award-categories/${categoryId}/votes`)
-      setVotes(Array.isArray(res) ? res : res.data || [])
+      if (Array.isArray(res)) {
+        setVotes(res)
+        setQueuedCount(0)
+      } else {
+        setVotes(res?.votes || [])
+        setQueuedCount(res?.queued || 0)
+      }
     } catch (err) {
       setVotes([])
+      setQueuedCount(0)
+    }
+  }
+
+  const handleExportVotes = async () => {
+    setExporting(true)
+    setMessage({ type: '', text: '' })
+    try {
+      const { filename } = await api.download('/award-categories/export/votes.zip', 'spotlight-awards-votes.zip')
+      setMessage({ type: 'success', text: `Downloaded ${filename}` })
+    } catch (err) {
+      setMessage({ type: 'error', text: err.message || 'Export failed' })
+    } finally {
+      setExporting(false)
     }
   }
 
@@ -398,7 +421,26 @@ export default function AwardsAdmin() {
 
         {/* Votes Tab */}
         <TabsContent value="votes" className="space-y-6">
-          <p className="text-white/60">View votes per category</p>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-white/60">View votes per category</p>
+            <Button
+              onClick={handleExportVotes}
+              disabled={exporting}
+              className="bg-gold text-black hover:bg-gold/90"
+            >
+              {exporting ? <Loader2 className="animate-spin" size={16} /> : <Download size={16} />}
+              {exporting ? 'Preparing...' : 'Download all votes (.zip)'}
+            </Button>
+          </div>
+          {message.text && (
+            <p className={`text-sm ${message.type === 'error' ? 'text-red-400' : 'text-gold'}`}>
+              {message.text}
+            </p>
+          )}
+          <p className="text-white/40 text-xs">
+            The download contains an .xlsx workbook and matching .csv files: an overview, a tally
+            per nominee, and one row per individual vote.
+          </p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {categories.filter(c => c.active).map((cat) => (
               <button
@@ -420,7 +462,12 @@ export default function AwardsAdmin() {
             <div className="bg-black border border-gold/20 overflow-hidden">
               <div className="p-4 border-b border-gold/10">
                 <h3 className="text-white font-medium">{selectedVoteCat.name} — Vote Results</h3>
-                <p className="text-white/50 text-sm">{votes.length} total votes</p>
+                <p className="text-white/50 text-sm">
+                  {votes.length} total votes
+                  {queuedCount > 0 && (
+                    <span className="text-gold"> · {queuedCount} awaiting write</span>
+                  )}
+                </p>
               </div>
               {votes.length === 0 ? (
                 <div className="p-4 text-center text-white/50">No votes yet</div>
