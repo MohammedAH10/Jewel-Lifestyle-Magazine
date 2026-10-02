@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useAuth } from '@/lib/AuthContext'
 import { api } from '@/api/client'
+import useAutoRefresh from '@/hooks/useAutoRefresh'
 import { motion } from 'framer-motion'
 import {
   LayoutDashboard, Newspaper, Users, Award, Image, BookOpen,
@@ -58,28 +59,31 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState({ interviews: 0, subscribers: 0, submissions: 0, magazines: 0, inquiries: 0 })
   const [loadingStats, setLoadingStats] = useState(true)
 
-  useEffect(() => {
-    if (activeTab === 'overview') {
-      async function fetchStats() {
-        setLoadingStats(true)
-        try {
-          const [interviews, subscribers, submissions, magazines, inquiries] = await Promise.all([
-            api.get('/executives').then(d => d.length),
-            api.get('/subscribers').then(d => d.length),
-            api.get('/stories').then(d => d.length),
-            api.get('/magazines').then(d => d.length),
-            api.get('/inquiries').then(d => d.length),
-          ])
-          setStats({ interviews, subscribers, submissions, magazines, inquiries })
-        } catch {
-          // stats stay at 0
-        } finally {
-          setLoadingStats(false)
-        }
-      }
-      fetchStats()
+  const fetchStats = async ({ silent } = {}) => {
+    // No spinner on background polls, otherwise the counts flicker every tick.
+    if (!silent) setLoadingStats(true)
+    try {
+      const [interviews, subscribers, submissions, magazines, inquiries] = await Promise.all([
+        api.get('/executives').then(d => d.length),
+        api.get('/subscribers').then(d => d.length),
+        api.get('/stories').then(d => d.length),
+        api.get('/magazines').then(d => d.length),
+        api.get('/inquiries').then(d => d.length),
+      ])
+      setStats({ interviews, subscribers, submissions, magazines, inquiries })
+    } catch {
+      // stats stay at 0
+    } finally {
+      if (!silent) setLoadingStats(false)
     }
+  }
+
+  useEffect(() => {
+    if (activeTab === 'overview') fetchStats()
   }, [activeTab])
+
+  // Keep the dashboard counts current without a manual refresh.
+  useAutoRefresh(fetchStats, { enabled: activeTab === 'overview' })
 
   if (isLoadingAuth) {
     return (

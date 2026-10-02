@@ -5,9 +5,19 @@
  * revalidate so a stale edge entry is always replaced in the background.
  * `stale-while-revalidate` serves the stale copy immediately while a single
  * origin request refreshes it, which is what converts cache misses into hits.
+ *
+ * Authenticated requests bypass the cache entirely. Several endpoints serve
+ * both the public site and the admin panel, and an admin polling for fresh
+ * data would otherwise be served its own stale edge copy.
  */
 const publicCache = (seconds = 60, staleSeconds = 300) => (req, res, next) => {
   if (req.method !== 'GET') return next();
+
+  if (req.headers.authorization) {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.setHeader('CDN-Cache-Control', 'no-store');
+    return next();
+  }
 
   const existing = res.getHeader('Cache-Control');
   if (!existing) {

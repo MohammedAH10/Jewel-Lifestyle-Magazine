@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { api } from '@/api/client'
+import useAutoRefresh from '@/hooks/useAutoRefresh'
 import { Loader2, Download, Trash2, Mail } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
@@ -7,21 +8,24 @@ export default function SubscribersAdmin() {
   const [subscribers, setSubscribers] = useState([])
   const [loading, setLoading] = useState(true)
 
-  const fetchSubscribers = async () => {
+  const fetchSubscribers = async ({ silent } = {}) => {
     try {
-      setLoading(true)
+      if (!silent) setLoading(true)
       const data = await api.get('/subscribers')
       setSubscribers(data)
     } catch (err) {
       console.error('Failed to load subscribers', err)
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }
 
   useEffect(() => {
     fetchSubscribers()
   }, [])
+
+  // Keep this panel current without a manual refresh.
+  useAutoRefresh(fetchSubscribers)
 
   const handleDelete = async (id) => {
     if (!confirm('Are you sure you want to delete this subscriber?')) return

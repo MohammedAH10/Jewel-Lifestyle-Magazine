@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import useAutoRefresh from '@/hooks/useAutoRefresh'
 
 const defaultCatForm = {
   name: '',
@@ -61,21 +62,22 @@ export default function AwardsAdmin() {
   const [queuedCount, setQueuedCount] = useState(0)
   const [exporting, setExporting] = useState(false)
 
-  const fetchCategories = async () => {
+  const fetchCategories = async ({ silent } = {}) => {
     try {
       const res = await api.get('/award-categories')
       setCategories(Array.isArray(res) ? res : res.data || [])
     } catch (err) {
-      setMessage({ type: 'error', text: 'Failed to load categories' })
+      // A failed background poll should not replace whatever is on screen.
+      if (!silent) setMessage({ type: 'error', text: 'Failed to load categories' })
     }
   }
 
-  const fetchWinners = async () => {
+  const fetchWinners = async ({ silent } = {}) => {
     try {
       const res = await api.get('/awards/winners')
       setWinners(Array.isArray(res) ? res : res.data || [])
     } catch (err) {
-      setMessage({ type: 'error', text: 'Failed to load winners' })
+      if (!silent) setMessage({ type: 'error', text: 'Failed to load winners' })
     }
   }
 
@@ -110,14 +112,27 @@ export default function AwardsAdmin() {
     }
   }
 
-  const fetchAll = async () => {
-    setLoading(true)
-    setMessage({ type: '', text: '' })
-    await Promise.all([fetchCategories(), fetchWinners()])
-    setLoading(false)
+  const fetchAll = async ({ silent } = {}) => {
+    // Background polls skip the spinner, otherwise the page would appear to
+    // reload every few seconds.
+    if (!silent) setLoading(true)
+    if (!silent) setMessage({ type: '', text: '' })
+    await Promise.all([fetchCategories({ silent }), fetchWinners({ silent })])
+    if (!silent) setLoading(false)
   }
 
   useEffect(() => { fetchAll() }, [])
+
+  // Keep categories and winners current without a manual refresh.
+  useAutoRefresh(fetchAll)
+
+  // Refresh the open tally too, so votes arriving from the public site appear
+  // on their own. This endpoint also flushes the vote queue, which is why it
+  // runs less often than nothing at all rather than continuously.
+  useAutoRefresh(() => fetchVotes(selectedVoteCat?.id), {
+    enabled: Boolean(selectedVoteCat),
+    interval: 10000,
+  })
 
   const resetCatForm = () => {
     setCatForm(defaultCatForm)

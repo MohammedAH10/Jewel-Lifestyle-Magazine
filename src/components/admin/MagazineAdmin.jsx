@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { api } from '@/api/client'
+import useAutoRefresh from '@/hooks/useAutoRefresh'
 import { motion } from 'framer-motion'
 import { Plus, Edit2, Trash2, Loader2, Image as ImageIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -34,20 +35,24 @@ export default function MagazineAdmin() {
   const [formData, setFormData] = useState(defaultForm)
   const [coverFile, setCoverFile] = useState(null)
 
-  const fetchIssues = async () => {
+  const fetchIssues = async ({ silent } = {}) => {
     try {
-      setLoading(true)
+      if (!silent) setLoading(true)
       const res = await api.get('/magazines')
       setIssues(Array.isArray(res) ? res : res.data || [])
-      setMessage({ type: '', text: '' })
+      // A background poll must not clear a message the admin is reading.
+      if (!silent) setMessage({ type: '', text: '' })
     } catch (err) {
       setMessage({ type: 'error', text: 'Failed to load magazine issues' })
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }
 
   useEffect(() => { fetchIssues() }, [])
+
+  // Keep this panel current without a manual refresh.
+  useAutoRefresh(fetchIssues)
 
   const resetForm = () => {
     setFormData(defaultForm)

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { api } from '@/api/client'
+import useAutoRefresh from '@/hooks/useAutoRefresh'
 import { Loader2, Eye, Check, X, ExternalLink } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -18,21 +19,24 @@ export default function SubmissionsAdmin() {
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState(null)
 
-  const fetchSubmissions = async () => {
+  const fetchSubmissions = async ({ silent } = {}) => {
     try {
-      setLoading(true)
+      if (!silent) setLoading(true)
       const data = await api.get('/stories')
       setSubmissions(data)
     } catch (err) {
       console.error('Failed to load submissions', err)
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }
 
   useEffect(() => {
     fetchSubmissions()
   }, [])
+
+  // Keep this panel current without a manual refresh.
+  useAutoRefresh(fetchSubmissions)
 
   const handleStatusChange = async (id, status) => {
     await api.put(`/stories/${id}`, { status })
