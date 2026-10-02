@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Trophy, Award, Star, Calendar, MapPin, CheckCircle, Loader2, Send } from 'lucide-react'
 import { imageUrl, presets } from '@/utils/imageUrl'
+import VoteConfirmation from '@/components/VoteConfirmation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
@@ -25,6 +26,8 @@ export default function SpotlightAwards() {
   const [voterEmail, setVoterEmail] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [submitMsg, setSubmitMsg] = useState('')
+  const [showConfirmation, setShowConfirmation] = useState(false)
+  const [acceptedCount, setAcceptedCount] = useState(0)
 
   useEffect(() => {
     let cancelled = false
@@ -87,7 +90,12 @@ export default function SpotlightAwards() {
     setSubmitting(true)
     setSubmitMsg('')
     try {
-      const failed = []
+      // Tracked as a Set of category ids, not just messages: a device may only
+      // vote once per category, so the categories that succeeded must be
+      // dropped from the form or a retry would be rejected as a duplicate.
+      const failed = new Map()
+      let accepted = 0
+
       for (const catId of catIds) {
         try {
           await api.post('/award-categories/vote', {
@@ -96,26 +104,36 @@ export default function SpotlightAwards() {
             voter_name: voterName.trim(),
             voter_email: voterEmail.trim(),
           })
+          accepted++
         } catch (err) {
-          failed.push(err.message || 'Failed to submit')
+          failed.set(catId, err.message || 'Failed to submit')
         }
       }
 
-      if (failed.length === 0) {
+      if (failed.size === 0) {
         setSubmitMsg('success')
         setVotes({})
         setVoterName('')
         setVoterEmail('')
-      } else if (failed.length === catIds.length) {
-        setSubmitMsg(failed[0])
+        setAcceptedCount(accepted)
+        setShowConfirmation(true)
       } else {
-        // Partial success: keep the categories that failed so they can be
-        // retried, since a device may only vote once per category.
-        setSubmitMsg(`Some votes failed: ${failed.join('; ')}`)
+        const messages = [...failed.values()]
+        if (accepted === 0) {
+          setSubmitMsg(messages[0])
+        } else {
+          setSubmitMsg(
+            `${accepted} of ${catIds.length} votes recorded. Still open: ${messages.join('; ')}`
+          )
+        }
+        // Keep only the categories that failed, so a retry only re-sends those.
         const stillOpen = Object.fromEntries(
-          catIds.filter((id) => failed.length < catIds.length).map((id) => [id, votes[id]])
+          Object.entries(votes).filter(([id]) => failed.has(id))
         )
-        setVotes(Object.keys(stillOpen).length ? votes : {})
+        setVotes(stillOpen)
+        // The accepted votes are already recorded, so confirm those.
+        setAcceptedCount(accepted)
+        if (accepted > 0) setShowConfirmation(true)
       }
     } catch (err) {
       setSubmitMsg(err.message || 'Failed to submit votes')
@@ -322,16 +340,19 @@ export default function SpotlightAwards() {
                     </span>
                   )}
                 </Button>
-                {submitMsg === 'success' ? (
-                  <div className="text-center p-4 bg-green-500/10 border border-green-500/30 rounded">
-                    <CheckCircle className="w-8 h-8 text-green-400 mx-auto mb-2" />
-                    <p className="text-green-400">Your votes have been submitted. Thank you!</p>
-                  </div>
-                ) : submitMsg ? (
+                {submitMsg && submitMsg !== 'success' && (
                   <div className="text-center p-4 bg-red-500/10 border border-red-500/30 rounded">
                     <p className="text-red-400 text-sm">{submitMsg}</p>
                   </div>
-                ) : null}
+                )}
+                <VoteConfirmation
+                  open={showConfirmation}
+                  count={acceptedCount}
+                  onClose={() => {
+                    setShowConfirmation(false)
+                    if (acceptedCount > 0) setSubmitMsg('')
+                  }}
+                />
               </div>
             </motion.div>
           </div>

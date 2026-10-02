@@ -115,6 +115,56 @@ class ApiClient {
     return this.post(`/upload${query}`, formData, true);
   }
 
+  /**
+   * Downloads a binary response as a file. Used for the vote export, which
+   * returns a ZIP rather than JSON.
+   *
+   * @param {string} endpoint
+   * @param {string} fallbackName used if the server sends no filename
+   */
+  async download(endpoint, fallbackName = 'download') {
+    const token = this.getToken();
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 120000);
+
+    let response;
+    try {
+      response = await fetch(`${this.baseUrl}${endpoint}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        signal: controller.signal,
+      });
+    } catch (err) {
+      if (err.name === 'AbortError') {
+        throw new Error('The export took too long to download. Please try again.');
+      }
+      throw new Error('Unable to reach the server. Check your connection and try again.');
+    } finally {
+      clearTimeout(timer);
+    }
+
+    if (!response.ok) {
+      const data = await response.json().catch(() => null);
+      throw new Error(data?.error || `Export failed with status ${response.status}`);
+    }
+
+    // Prefer the filename the server chose so the date stays accurate.
+    const disposition = response.headers.get('content-disposition') || '';
+    const match = disposition.match(/filename="?([^"]+)"?/i);
+    const filename = match ? match[1] : fallbackName;
+
+    const blob = await response.blob();
+    const href = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = href;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(href);
+
+    return { filename, bytes: blob.size };
+  }
+
   login(email, password) {
     return this.post('/auth/login', { email, password });
   }

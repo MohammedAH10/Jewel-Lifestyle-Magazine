@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "server": "node server/index.js",
-    "migrate:images": "node migrate-images.mjs"
+    "migrate:images": "node migrate-images.mjs",
+    "seed:awards": "node seed-awards.js"
   },
   "dependencies": {
     "@hello-pangea/dnd": "^17.0.0",

@@ -350,7 +350,74 @@ section-level failure rather than an indefinite spinner.
 
 ---
 
-## 8. Award voting and the IP limit
+## 8. Queued voting
+
+### Why votes are queued
+
+Voting used to write straight to `awardvotes`. That made a spike in traffic a
+spike of inserts, and every insert contends on the unique index — enough
+concurrent writes will exhaust connections on a small cluster.
+
+`POST /api/award-categories/vote` now returns **202** after one small insert
+into `queuedvotes`. That is the only write on the request path. A drain then
+moves entries into `awardvotes` in batches of 100, so the index is touched once
+per batch instead of once per vote, and the burst is smoothed rather than
+passed through.
+
+The queue lives in MongoDB, not process memory, so an instance being recycled
+or a deploy cannot lose a vote. Entries do not expire; a drain runs whenever
+the instance is alive to run one, and the next request or admin view picks up
+whatever is left.
+
+```
+voter  -> POST /vote -> 202 --+
+                              +-> queuedvotes --drain(100)--> awardvotes
+admin  -> GET /:id/votes ----+        ^
+                               drain also runs here and on export
+```
+
+### Drain
+
+Documents are claimed with `findOneAndDelete`, which is atomic, so two
+instances draining at once cannot both take the same vote. A failed write is
+re-queued rather than dropped, except on a duplicate-key error, where the
+queued copy is discarded because the device already has a stored vote.
+
+### What the voter sees
+
+The confirmation popup states the vote has been recorded, not counted. That is
+accurate: 202 means accepted and durable, not yet written.
+
+### What the admin sees
+
+`GET /api/award-categories/:id/votes` flushes the queue before reading, then
+returns `{ votes, queued }`. The panel shows the pending count beside the
+total, so a tally is never quietly missing votes.
+
+### Export
+
+`GET /api/award-categories/export/votes.zip` is admin-only and flushes the
+queue first. The archive contains:
+
+| File | Contents |
+|---|---|
+| `spotlight-awards-votes.xlsx` | Overview, Tally and All votes worksheets |
+| `votes-tally.csv` | One row per nominee, with share of category votes |
+| `votes-detail.csv` | One row per individual vote |
+| `README.txt` | What each file holds, and a note on the queue |
+
+Categories with no votes appear as `(no votes yet)` so an empty shortlist reads
+as a gap rather than an oversight.
+
+Both the ZIP container and the XLSX are written by hand in
+`server/utils/zip.js` and `server/utils/voteExport.js`, so no compression or
+spreadsheet dependency is added to the serverless bundle. Cell text is escaped,
+and a leading `=`, `+`, `-` or `@` is prefixed with an apostrophe so a
+voter-supplied name cannot become a formula in Excel.
+
+---
+
+## 9. Award voting and the IP limit
 
 ### Model
 
@@ -412,7 +479,7 @@ it as permanent once votes exist. If it is unset the code falls back to
 
 ---
 
-## 9. Authentication
+## 10. Authentication
 
 `server/middleware/auth.js` exposes `authenticate`, `adminOnly` and
 `optionalAuth`. `authenticate` verifies the `Authorization: Bearer <token>`
@@ -429,7 +496,7 @@ vote) are deliberately unauthenticated.
 
 ---
 
-## 10. Data model
+## 11. Data model
 
 | Model | Purpose | Image fields |
 |---|---|---|
@@ -440,6 +507,7 @@ vote) are deliberately unauthenticated.
 | `TeamMember` | About page team | `photo_url` |
 | `AwardCategory` | Award categories with inline nominees | `nominees[].image` |
 | `AwardVote` | Votes, keyed by category | — |
+| `QueuedVote` | Votes awaiting a write, drained in batches | — |
 | `AwardWinner` | Past winners | `photo_url` |
 | `AwardNomination` | Public nomination submissions | — |
 | `SpotlightAward` | Spotlight copy | — |
@@ -453,7 +521,7 @@ Content models (`ExecutiveInterview`, `MagazineIssue`) share a
 
 ---
 
-## 11. API reference
+## 12. API reference
 
 Public unless marked 🔒 admin-only or 🔑 authenticated.
 
@@ -481,8 +549,9 @@ Public unless marked 🔒 admin-only or 🔑 authenticated.
 |---|---|---|---|
 | GET | `/api/award-categories` | 60s | `?year=`, `?active=` |
 | GET | `/api/award-categories/:id` | 60s | |
-| POST | `/api/award-categories/:id/vote` | no-store | 201, 409 repeat, 400 invalid |
-| GET | `/api/award-categories/:id/votes` | no-store | 🔒 |
+| POST | `/api/award-categories/vote` | no-store | 202 queued, 409 repeat, 400 invalid |
+| GET | `/api/award-categories/:id/votes` | no-store | 🔒 returns `{ votes, queued }` |
+| GET | `/api/award-categories/export/votes.zip` | no-store | 🔒 xlsx + csv archive |
 | GET/POST/PUT/DELETE | `/api/awards/categories` | 300s / no-store | 🔒 writes uncached |
 | GET/POST/PUT/DELETE | `/api/awards/winners` | 300s / no-store | 🔒 writes uncached |
 | GET/POST/PUT/DELETE | `/api/awards/nominations` | no-store | 🔒 contact details, never cached |
@@ -502,7 +571,7 @@ Public unless marked 🔒 admin-only or 🔑 authenticated.
 
 ---
 
-## 12. Configuration reference
+## 13. Configuration reference
 
 | Variable | Required | Purpose |
 |---|---|---|
@@ -520,7 +589,7 @@ Never commit `.env`.
 
 ---
 
-## 13. Operational notes
+## 14. Operational notes
 
 **Vercel environment.** The API needs `MONGODB_URI`, `JWT_SECRET`, the three
 `IMAGEKIT_*` keys and `VOTE_IP_SALT`. Omitting any of them is the most common
@@ -550,6 +619,6 @@ device already voted in that category.
   it needs a token endpoint and per-folder limits to avoid an open upload proxy.
 - `imageUrl` only transforms `ik.imagekit.io` URLs, so any image still on
   Cloudinary gets no compression until migrated.
-- IP-based vote limiting is defeatable; see section 8.
+- IP-based vote limiting is defeatable; see section 9.
 - `npm run lint` reports pre-existing unused-import errors in files unrelated to
   these changes. The build does not depend on lint passing.
