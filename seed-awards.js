@@ -5,11 +5,12 @@ import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import imagekit from './server/config/imagekit.js';
 import AwardCategory from './server/models/AwardCategory.js';
+import { resolveMongoUri } from './server/config/mongoUri.js';
 
 dotenv.config();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const MONGODB_URI = process.env.MONGODB_URI;
+const { uri: MONGODB_URI, dbName: MONGODB_DB } = resolveMongoUri();
 const SOURCE_DIR = path.resolve(process.cwd(), 'JewelSpotlightAwardsNominees');
 const YEAR = parseInt(process.env.AWARDS_YEAR || String(new Date().getFullYear()), 10);
 const IMAGE_FOLDER = 'spotlight-awards';
@@ -68,8 +69,8 @@ const run = async () => {
     process.exit(1);
   }
 
-  await mongoose.connect(MONGODB_URI, { serverSelectionTimeoutMS: 20000 });
-  console.log(`Connected. Seeding ${categoryDirs.length} categories from ${path.basename(SOURCE_DIR)}/`);
+  await mongoose.connect(MONGODB_URI, { dbName: MONGODB_DB, serverSelectionTimeoutMS: 20000 });
+  console.log(`Connected to '${MONGODB_DB}'. Seeding ${categoryDirs.length} categories from ${path.basename(SOURCE_DIR)}/`);
 
   let uploaded = 0;
   let skipped = 0;

@@ -1,11 +1,13 @@
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
+import { resolveMongoUri } from './config/mongoUri.js';
+
 dotenv.config();
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/jewel-magazine';
+const { uri: MONGODB_URI, dbName: MONGODB_DB } = resolveMongoUri();
 
 async function main() {
-  await mongoose.connect(MONGODB_URI);
+  await mongoose.connect(MONGODB_URI, { dbName: MONGODB_DB });
 
   const User = (await import('./models/User.js')).default;
   const count = await User.countDocuments();

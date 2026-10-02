@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import path from 'path';
 import imagekit from './server/config/imagekit.js';
+import { resolveMongoUri } from './server/config/mongoUri.js';
 
 dotenv.config();
 
@@ -18,12 +19,13 @@ const migrateString = async (v, ctx) => {
 
 const run = async () => {
   if (!MONGODB_URI) throw new Error('MONGODB_URI missing');
+  const { dbName: MONGODB_DB } = resolveMongoUri();
   if (!imagekit.isConfigured()) {
     console.warn('ImageKit not configured yet. Skipping image migration.');
     return;
   }
-  await mongoose.connect(MONGODB_URI, { serverSelectionTimeoutMS: 15000 });
-  console.log('Connected, starting migration...');
+  await mongoose.connect(MONGODB_URI, { dbName: MONGODB_DB, serverSelectionTimeoutMS: 15000 });
+  console.log(`Connected to '${MONGODB_DB}', starting migration...`);
 
   const models = [
     { name: 'HeroSlide', key: 'image_url' },
