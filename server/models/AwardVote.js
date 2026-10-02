@@ -8,6 +8,9 @@ const awardVoteSchema = new mongoose.Schema({
   // SHA-256 of the salted client IP. Used to stop one device voting twice
   // without storing the raw address.
   voter_ip_hash: { type: String, index: true },
+  // When the voter submitted. `createdAt` is when the drain wrote this
+  // document, which under load can be later than the actual vote.
+  queued_at: Date,
 }, { timestamps: true });
 
 // One vote per device per category. The sparse flag lets documents written
