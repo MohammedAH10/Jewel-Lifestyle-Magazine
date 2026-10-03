@@ -36,7 +36,9 @@ const attemptConnect = async (uri, dbName, attempt = 1) => {
       `MongoDB connect attempt ${attempt}/${CONNECT_ATTEMPTS} failed (${err.message}); retrying in ${wait}ms`
     );
     await sleep(wait);
-    return attemptConnect(uri, attempt + 1);
+    // dbName must be passed through: dropping it here would hand the retry a
+    // different database, which is exactly the bug this file exists to prevent.
+    return attemptConnect(uri, dbName, attempt + 1);
   }
 };
 
