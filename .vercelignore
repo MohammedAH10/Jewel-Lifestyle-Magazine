@@ -1,0 +1,26 @@
+# Secrets must never be uploaded. The CLI's .gitignore fallback is not
+# something to rely on for credentials, so these are listed explicitly.
+# .env.example is excluded too: it is an empty template and the build has no
+# use for it.
+.env
+.env.*
+
+# Installed on Vercel's build servers, not shipped from here.
+node_modules
+
+# Vercel runs `npm run build` itself; a stale local dist would only confuse it.
+dist
+
+# Source image folders, ~11MB, only needed locally by the seed scripts. The
+# images themselves live in ImageKit.
+JewelSpotlightAwardsNominees/
+testimagekit/
+images/
+
+# Local end-to-end test scripts
+queue-e2e.mjs
+export-e2e.mjs
+
+.git
+*.log
+.DS_Store
